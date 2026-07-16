@@ -1,0 +1,18 @@
+{
+  "name": "researchflow-dev",
+  "description": "Development marketplace for the ResearchFlow plugin",
+  "owner": {
+    "name": "ResearchFlow contributors"
+  },
+  "plugins": [
+    {
+      "name": "researchflow",
+      "description": "Skills library for research, literature review, paper drafting, review, and artifact packaging",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "ResearchFlow contributors"
+      }
+    }
+  ]
+}

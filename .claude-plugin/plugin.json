@@ -1,0 +1,16 @@
+{
+  "name": "researchflow",
+  "description": "Skills library for research, literature review, paper drafting, review, and artifact packaging",
+  "version": "0.1.0",
+  "author": {
+    "name": "ResearchFlow contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "research",
+    "papers",
+    "literature-review",
+    "workflow"
+  ]
+}

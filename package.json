@@ -1,0 +1,14 @@
+{
+  "name": "researchflow",
+  "version": "0.1.0",
+  "description": "ResearchFlow skills and runtime bootstrap for research and paper-writing agents",
+  "type": "module",
+  "main": ".opencode/plugins/researchflow.js",
+  "keywords": [
+    "skills",
+    "research",
+    "papers",
+    "literature-review",
+    "workflow"
+  ]
+}
