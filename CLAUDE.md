@@ -25,3 +25,5 @@ ResearchFlow is a standalone plugin for research and paper-writing workflows.
 - `artifact-packaging`
 - `arxiv`
 - `arxiv-pdf-download`
+- `figure-support`
+- `submission-readiness`

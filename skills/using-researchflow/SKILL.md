@@ -1,10 +1,10 @@
 ---
 name: using-researchflow
 description: Bootstrap and routing layer for the ResearchFlow plugin. Use this as the default entrypoint for research and paper-writing sessions so the agent picks the right phase skill instead of improvising.
-version: 0.1.0
+version: 0.3.0
 metadata:
   tags: [Research, Workflow, Routing, Papers]
-  related_skills: [literature-discovery, paper-structuring, paper-drafting, paper-review, artifact-packaging, arxiv, arxiv-pdf-download]
+  related_skills: [literature-discovery, paper-structuring, paper-drafting, paper-review, artifact-packaging, arxiv, arxiv-pdf-download, figure-support, submission-readiness]
 ---
 
 # Using ResearchFlow
@@ -17,7 +17,7 @@ Before doing substantive work, identify the user's current phase and route to th
 
 ## The phase model
 
-ResearchFlow uses five primary phases and two support skills.
+ResearchFlow uses five primary phases and four support skills.
 
 1. **literature-discovery**
    - discover papers
@@ -40,6 +40,8 @@ ResearchFlow uses five primary phases and two support skills.
 Support skills:
 - **arxiv** — lightweight arXiv discovery and metadata lookup
 - **arxiv-pdf-download** — save local PDFs and organize them on disk
+- **figure-support** — design or audit figures, captions, and visual storytelling
+- **submission-readiness** — final gate for venue-facing submission quality
 
 ## Routing algorithm
 
@@ -59,6 +61,8 @@ Pick one primary phase skill per turn. Use support skills only when they are cle
 Examples:
 - `literature-discovery` may use `arxiv` for quick expansion.
 - `artifact-packaging` may package locally downloaded PDFs, but local paper acquisition itself still routes to `arxiv-pdf-download`.
+- `artifact-packaging` may use `figure-support` if a packaging pass reveals weak captions or figure quality.
+- `paper-review` may escalate to `submission-readiness` when the user wants a final go / no-go gate rather than another broad critique.
 
 ### Step 3: Explain the routing briefly
 
@@ -116,6 +120,11 @@ Use when the user asks for:
 - build a revision plan
 - determine whether the issue is structure, evidence, or wording
 
+Escalate to `submission-readiness` when the user explicitly wants:
+- a final gate before submission
+- a go / no-go judgment
+- camera-ready or near-submission final checks
+
 ### Route to `artifact-packaging`
 
 Use when the user asks for:
@@ -125,6 +134,12 @@ Use when the user asks for:
 - package figures, tables, and reproducibility notes
 - assemble a submission-facing artifact checklist
 
+Escalate to `figure-support` when the user explicitly wants:
+- figure design
+- figure audit
+- chart-type choice
+- caption and visual-storytelling help
+
 ## Ambiguity handling
 
 Ask a clarifying question only when the request could plausibly belong to two adjacent phases and the wrong routing would waste work.
@@ -132,6 +147,7 @@ Ask a clarifying question only when the request could plausibly belong to two ad
 Good clarifications:
 - “Do you already have a stable related-work set, or should I start by finding the closest papers?”
 - “Is the main problem the section logic, or do you already like the structure and want prose help only?”
+- “Are you asking for a general review, or a final submission gate?”
 
 Do not ask questions whose answers can be inferred from the user's files or stated intent.
 

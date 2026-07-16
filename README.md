@@ -20,8 +20,10 @@ It is designed around a small number of workflow stages instead of a long list o
 ## Bundled support skills
 
 - **using-researchflow** — bootstrap and routing layer
-- **arxiv** — lightweight arXiv discovery, metadata, and abstract lookup
+- **arxiv** — lightweight arXiv discovery, metadata, abstract, and shortlist support
 - **arxiv-pdf-download** — local PDF download and organization workflow
+- **figure-support** — figure design, caption guidance, and visual audit support
+- **submission-readiness** — final submission gate for venue-facing polish
 
 ## Repository shape
 
@@ -59,9 +61,8 @@ V0 provides:
 - plugin skeleton for Claude Code and OpenCode
 - bootstrap injection for OpenCode
 - a compact five-phase research workflow
-- arXiv discovery and PDF-download support skills
+- arXiv discovery, PDF-download, figure, and submission support skills
 - minimal smoke tests under `tests/`
-
 
 ## Smoke tests
 
