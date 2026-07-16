@@ -94,3 +94,15 @@ Return:
 - missing items
 - main risks or manual confirmations still needed
 - recommended final export or delivery step
+
+## Handoff artifact: Submission Packet
+
+When this skill is used inside the full workflow, its output should be capturable as a **Submission Packet** containing:
+- artifact inventory
+- export paths
+- figure status
+- supplement status
+- go / no-go packaging recommendation
+- remaining manual checks
+
+This packet is the final workflow surface before external submission or internal delivery.

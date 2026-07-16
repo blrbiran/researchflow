@@ -17,6 +17,7 @@ for rel in [
     'skills/arxiv/scripts/search_arxiv.py',
     'skills/arxiv-pdf-download/scripts/download_arxiv_refs.py',
     'skills/arxiv-pdf-download/scripts/organize_pdf_titles.py',
+    'docs/workflow-contracts.md',
 ]:
     assert (root / rel).exists(), rel
 print('ok - claude manifests point at researchflow and support skills/scripts exist')

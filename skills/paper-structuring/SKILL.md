@@ -107,3 +107,15 @@ Return:
 - section skeleton with one-line role per section
 - unresolved structural risks
 - recommended next step for drafting or more literature work
+
+## Handoff artifact: Structure Brief
+
+When this skill is used inside the full workflow, its output should be capturable as a **Structure Brief** containing:
+- paper type
+- thesis or goal
+- logic chain
+- section skeleton
+- contribution list
+- structural risks
+
+`paper-drafting` should not begin until the section skeleton and contribution-to-evidence mapping are stable enough to support paragraph-level writing.

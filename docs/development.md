@@ -66,3 +66,14 @@ git -C reference/researchflow commit ...
 ```
 
 Do not assume parent-repo commits will capture child-repo history.
+
+
+## Workflow contracts
+
+The main workflow is artifact-driven:
+
+```text
+Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet
+```
+
+When editing a phase skill, keep its expected handoff artifact synchronized with `docs/workflow-contracts.md`.

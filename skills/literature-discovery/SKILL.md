@@ -135,6 +135,18 @@ Return:
 - confidence level and main uncertainty
 - the recommended next phase
 
+## Handoff artifact: Literature Map
+
+When this skill is used inside the full workflow, its output should be capturable as a **Literature Map** containing:
+- frozen question
+- retrieval axes
+- closest works
+- taxonomy or clusters
+- likely gap
+- confidence and uncertainty
+
+`paper-structuring` should not begin until this map is stable enough to explain both the closest work and the actual gap.
+
 ## Routing notes
 
 - If the user wants quick arXiv-only discovery, use `arxiv`.

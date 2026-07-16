@@ -102,3 +102,14 @@ Return clean prose plus only the shortest necessary note on unresolved gaps, if 
 Return:
 - the drafted prose
 - optional short note on gaps that require user confirmation
+
+## Handoff artifact: Draft Packet
+
+When this skill is used inside the full workflow, its output should be capturable as a **Draft Packet** containing:
+- target scope
+- evidence basis
+- draft text or manuscript path
+- unresolved gaps
+- real-versus-planned result status
+
+`paper-review` should not begin until there is enough prose and evidence context to critique the manuscript as an argument rather than as disconnected notes.

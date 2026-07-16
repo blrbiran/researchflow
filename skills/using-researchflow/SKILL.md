@@ -19,6 +19,13 @@ Before doing substantive work, identify the user's current phase and route to th
 
 ResearchFlow uses five primary phases and four support skills.
 
+Each primary phase should leave behind a named handoff artifact:
+- `literature-discovery` -> **Literature Map**
+- `paper-structuring` -> **Structure Brief**
+- `paper-drafting` -> **Draft Packet**
+- `paper-review` -> **Review Packet**
+- `artifact-packaging` -> **Submission Packet**
+
 1. **literature-discovery**
    - discover papers
    - build a related-work map
@@ -42,6 +49,16 @@ Support skills:
 - **arxiv-pdf-download** — save local PDFs and organize them on disk
 - **figure-support** — design or audit figures, captions, and visual storytelling
 - **submission-readiness** — final gate for venue-facing submission quality
+
+## Workflow contracts
+
+ResearchFlow uses an artifact-driven contract chain:
+
+```text
+Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet
+```
+
+See `docs/workflow-contracts.md` for the full contract definition. The routing layer should prefer repairing or producing the missing upstream artifact instead of continuing downstream with an unstable handoff.
 
 ## Routing algorithm
 

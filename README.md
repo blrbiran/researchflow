@@ -60,6 +60,17 @@ See [docs/release/versioning.md](docs/release/versioning.md) and [docs/release/m
 - local development marketplaces
 - future publish path notes
 
+
+## Workflow contracts
+
+ResearchFlow now uses explicit handoff artifacts between its main phases:
+
+```text
+Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet
+```
+
+See [docs/workflow-contracts.md](docs/workflow-contracts.md) for the contract details and transition gates.
+
 ## Repository shape
 
 ```text

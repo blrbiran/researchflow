@@ -114,3 +114,14 @@ Return:
 - minor issues
 - a recommended revision order
 - the recommended next phase
+
+## Handoff artifact: Review Packet
+
+When this skill is used inside the full workflow, its output should be capturable as a **Review Packet** containing:
+- manuscript summary
+- critical / major / minor issues
+- revision order
+- unresolved blockers
+- recommended next phase
+
+`artifact-packaging` or `submission-readiness` should not begin until the workflow knows whether any CRITICAL blockers still remain.
