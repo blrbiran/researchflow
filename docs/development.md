@@ -77,3 +77,12 @@ Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission
 ```
 
 When editing a phase skill, keep its expected handoff artifact synchronized with `docs/workflow-contracts.md`.
+
+
+### Workflow demo
+
+```bash
+./tests/demo/test-agent-memory-e2e.sh
+```
+
+Checks that the sample Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet chain exists and carries the expected top-level headings.

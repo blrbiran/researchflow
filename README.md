@@ -102,3 +102,14 @@ V0 provides:
 
 - OpenCode bridge smoke test: `./tests/opencode/run-tests.sh`
 - Claude metadata smoke test: `./tests/claude-code/run-tests.sh`
+
+
+## End-to-end demo
+
+A minimal artifact-chain demo lives under `docs/demos/agent-memory-e2e/`.
+
+Run its check with:
+
+```bash
+./tests/demo/test-agent-memory-e2e.sh
+```
