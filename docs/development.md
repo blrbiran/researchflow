@@ -85,4 +85,4 @@ When editing a phase skill, keep its expected handoff artifact synchronized with
 ./tests/demo/test-agent-memory-e2e.sh
 ```
 
-Checks that the sample Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet chain exists and carries the expected top-level headings.
+Checks that the sample Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet chain exists and that each artifact includes the required workflow-contract fields with non-empty section bodies.
