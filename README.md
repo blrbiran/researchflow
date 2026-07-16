@@ -25,27 +25,50 @@ It is designed around a small number of workflow stages instead of a long list o
 - **figure-support** — figure design, caption guidance, and visual audit support
 - **submission-readiness** — final submission gate for venue-facing polish
 
-## Repository shape
+## Installation
 
-```text
-.claude-plugin/        Claude plugin metadata
-.opencode/             OpenCode install docs and plugin bridge
-skills/                ResearchFlow skill library
-tests/                 Minimal harness smoke tests
-```
+Installation differs by harness. If you use more than one, install ResearchFlow separately for each one.
 
-## Claude Code
+### Claude Code
 
-This repository includes Claude plugin metadata in `.claude-plugin/plugin.json`.
+ResearchFlow includes Claude plugin metadata in `.claude-plugin/`.
+
+For local development and private use, see [docs/README.claude.md](docs/README.claude.md).
 
 Current local development manifests:
 - `.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-## OpenCode
+### OpenCode
 
-See `.opencode/INSTALL.md` for plugin installation and verification.
+See [.opencode/INSTALL.md](.opencode/INSTALL.md) for installation and verification.
+
+## Local development
+
+See [docs/development.md](docs/development.md) for:
+- local repo layout
+- harness-specific install loops
+- smoke test commands
+- helper script expectations
+
+## Versioning and release
+
+See [docs/release/versioning.md](docs/release/versioning.md) and [docs/release/marketplace.md](docs/release/marketplace.md) for:
+- version bump expectations
+- manifest synchronization
+- local development marketplaces
+- future publish path notes
+
+## Repository shape
+
+```text
+.claude-plugin/        Claude plugin metadata
+.opencode/             OpenCode install docs and plugin bridge
+docs/                  Harness-specific docs and release notes
+skills/                ResearchFlow skill library
+tests/                 Minimal harness smoke tests
+```
 
 ## Minimal acceptance behavior
 

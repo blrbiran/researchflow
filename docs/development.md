@@ -1,0 +1,68 @@
+# ResearchFlow Local Development
+
+## Scope
+
+This document covers local development for the ResearchFlow plugin repository.
+
+Initial supported harnesses:
+- Claude Code
+- OpenCode
+
+## Repository layout
+
+- `.claude-plugin/` — Claude plugin metadata
+- `.opencode/` — OpenCode plugin bridge and install doc
+- `skills/` — skill library and helper scripts
+- `tests/` — local smoke tests
+- `docs/` — harness-specific and release documentation
+
+## Typical edit loop
+
+1. Update one or more skills or plugin bridge files.
+2. Re-run smoke tests.
+3. Check `git diff` in the `reference/researchflow` repo.
+4. Commit in the nested repo, not only in the parent workspace.
+
+## Smoke tests
+
+### OpenCode
+
+```bash
+./tests/opencode/run-tests.sh
+```
+
+Checks:
+- the plugin bridge registers `skills/`
+- the OpenCode bootstrap injects `using-researchflow`
+
+### Claude Code
+
+```bash
+./tests/claude-code/run-tests.sh
+```
+
+Checks:
+- Claude plugin manifests parse
+- required support skills and helper scripts exist
+
+## Helper scripts currently bundled
+
+- `skills/arxiv/scripts/search_arxiv.py`
+- `skills/arxiv-pdf-download/scripts/download_arxiv_refs.py`
+- `skills/arxiv-pdf-download/scripts/organize_pdf_titles.py`
+
+When changing these, re-run the Claude smoke test because it checks for their presence.
+
+## Nested repo reminder
+
+`reference/researchflow/` is its own git repository.
+
+Use:
+
+```bash
+git -C reference/researchflow status
+git -C reference/researchflow diff
+git -C reference/researchflow commit ...
+```
+
+Do not assume parent-repo commits will capture child-repo history.
