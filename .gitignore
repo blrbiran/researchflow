@@ -3,3 +3,4 @@
 .harness-acceptance-local/
 tests/harness-acceptance/run-config.local.json
 tests/harness-acceptance/results/*/raw/
+.superpowers/
