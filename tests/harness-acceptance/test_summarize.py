@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -81,7 +82,15 @@ class SummarizeTest(unittest.TestCase):
             write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
         return run_dir
 
-    def write_attempted_case(self, run_dir: Path, harness: str, case_id: str, verdict: str = "pass", contaminated: bool = False):
+    def write_attempted_case(
+        self,
+        run_dir: Path,
+        harness: str,
+        case_id: str,
+        verdict: str = "pass",
+        contaminated: bool = False,
+        plugin_source_id: str = "researchflow-checkout",
+    ):
         case_dir = run_dir / harness / case_id
         case_dir.mkdir(parents=True, exist_ok=True)
         observed_phase = next(case["expected_phase"] for case in self.cases if case["case_id"] == case_id)
@@ -90,6 +99,7 @@ class SummarizeTest(unittest.TestCase):
         invocation = copy.deepcopy(self.base_invocation)
         invocation["case_id"] = case_id
         invocation["harness"] = harness
+        invocation["plugin_source_id"] = plugin_source_id
         invocation["model_request"]["requested_route"] = "fable" if harness == "claude" else "openai/synthetic-model"
         invocation["final_response_sha256"] = response_sha256
         invocation["final_response_path"] = "final-response.txt"
@@ -128,7 +138,11 @@ class SummarizeTest(unittest.TestCase):
         mismatched["resolved_model_identity"] = "openai/not-synthetic"
         alias_only = copy.deepcopy(self.base_model_proof)
         alias_only["requested_route"] = "fable"
-        empty_allowlist = {"allowed_provider": "openai", "canonical_models": {}, "harness_aliases": {"fable": {"does_not_prove_backing_model": True}}}
+        empty_allowlist = {
+            "allowed_provider": "openai",
+            "canonical_models": {},
+            "harness_aliases": {"fable": {"does_not_prove_backing_model": True}},
+        }
         self.assertIsNone(self.summarize.validate_model_proof(unverified, identities))
         self.assertIsNone(self.summarize.validate_model_proof(mismatched, identities))
         self.assertIsNone(self.summarize.validate_model_proof(alias_only, empty_allowlist))
@@ -148,15 +162,29 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["pass"], 7)
         self.assertEqual(summary["harnesses"]["opencode"]["verdict_counts"]["pass"], 7)
         self.assertEqual(summary["harnesses"]["claude"]["contamination"]["contaminated_invocations"], 0)
+        self.assertEqual(summary["harnesses"]["claude"]["plugin_source_id"], "researchflow-checkout")
         self.assertEqual(markdown_1, markdown_2)
-        self.assertIn("This is single-run fresh-session acceptance evidence, not a stability or repeated-run estimate.", markdown_1)
+        self.assertIn(
+            "This is single-run fresh-session acceptance evidence, not a stability or repeated-run estimate.",
+            markdown_1,
+        )
+        self.assertIn(
+            "- Plugin proof strength: `best_available_source_plus_canary` (source `researchflow-checkout`)",
+            markdown_1,
+        )
         self.assertEqual(sum(1 for line in markdown_1.splitlines() if line.startswith("| ") and "R-" in line), 14)
 
     def test_build_summary_tracks_fail_and_contamination_overlay_separately(self):
         self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
         run_dir = self.make_run_dir()
         for case_id in self.case_ids:
-            self.write_attempted_case(run_dir, "claude", case_id, verdict="fail" if case_id == "R-BACK-INTRO" else "pass", contaminated=(case_id == "R-BACK-INTRO"))
+            self.write_attempted_case(
+                run_dir,
+                "claude",
+                case_id,
+                verdict="fail" if case_id == "R-BACK-INTRO" else "pass",
+                contaminated=(case_id == "R-BACK-INTRO"),
+            )
             self.write_attempted_case(run_dir, "opencode", case_id)
         summary = self.summarize.build_summary(run_dir, self.cases)
         self.assertFalse(summary["acceptance_passed"])
@@ -166,7 +194,7 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual(summary["harnesses"]["claude"]["contamination"]["case_ids"], ["R-BACK-INTRO"])
         self.assertEqual(summary["harnesses"]["opencode"]["verdict_counts"]["pass"], 7)
 
-    def test_build_summary_preflight_block_creates_reason_coded_rows(self):
+    def test_build_summary_preflight_block_creates_reason_coded_rows_and_uses_preflight_plugin_source(self):
         run_dir = self.make_run_dir()
         blocked_preflight = copy.deepcopy(self.base_preflights["claude"])
         blocked_preflight["status"] = "blocked"
@@ -177,6 +205,8 @@ class SummarizeTest(unittest.TestCase):
         self.assertTrue(all(row["status"] == "unattempted" for row in claude_rows + opencode_rows))
         self.assertEqual({row["reason_code"] for row in claude_rows}, {"claude_preflight_blocked"})
         self.assertEqual({row["reason_code"] for row in opencode_rows}, {"global_hard_gate_blocked"})
+        self.assertEqual(summary["harnesses"]["claude"]["plugin_source_id"], "researchflow-checkout")
+        self.assertEqual(summary["harnesses"]["opencode"]["plugin_source_id"], "researchflow-checkout")
         self.assertFalse(summary["acceptance_passed"])
 
     def test_build_summary_model_block_creates_all_14_unattempted_rows(self):
@@ -220,6 +250,42 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual({row["reason_code"] for row in claude_rows[2:]}, {"runtime_harness_stopped"})
         self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["unattempted"], 5)
 
+    def test_build_summary_rejects_attempted_case_after_runtime_stop(self):
+        self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
+        run_dir = self.make_run_dir()
+        self.write_attempted_case(run_dir, "claude", self.case_ids[0])
+        self.write_attempted_case(run_dir, "claude", self.case_ids[1], verdict="harness_error")
+        self.write_attempted_case(run_dir, "claude", self.case_ids[2])
+        for case_id in self.case_ids:
+            self.write_attempted_case(run_dir, "opencode", case_id)
+        with self.assertRaisesRegex(ValueError, "after harness_error"):
+            self.summarize.build_summary(run_dir, self.cases)
+
+    def test_build_summary_rejects_conflicting_plugin_sources(self):
+        self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
+
+        with self.subTest("attempted invocation sources disagree"):
+            run_dir = self.make_run_dir()
+            for case_id in self.case_ids:
+                plugin_source_id = "researchflow-checkout"
+                if case_id == self.case_ids[1]:
+                    plugin_source_id = "researchflow-release"
+                self.write_attempted_case(run_dir, "claude", case_id, plugin_source_id=plugin_source_id)
+                self.write_attempted_case(run_dir, "opencode", case_id)
+            with self.assertRaisesRegex(ValueError, "conflicting plugin_source_id"):
+                self.summarize.build_summary(run_dir, self.cases)
+
+        with self.subTest("preflight proof conflicts with attempted source"):
+            run_dir = self.make_run_dir()
+            preflight = copy.deepcopy(self.base_preflights["claude"])
+            preflight["plugin_source_id"] = "researchflow-release"
+            write_json(run_dir / "preflight" / "claude.json", preflight)
+            for harness in ("claude", "opencode"):
+                for case_id in self.case_ids:
+                    self.write_attempted_case(run_dir, harness, case_id)
+            with self.assertRaisesRegex(ValueError, "conflicting plugin_source_id"):
+                self.summarize.build_summary(run_dir, self.cases)
+
     def test_build_summary_rejects_duplicate_missing_and_invalid_partitions(self):
         with self.subTest("duplicate case ids across directories"):
             self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
@@ -261,7 +327,7 @@ class SummarizeTest(unittest.TestCase):
         for harness in ("claude", "opencode"):
             for case_id in self.case_ids:
                 self.write_attempted_case(run_dir, harness, case_id)
-        env = dict(__import__("os").environ)
+        env = dict(os.environ)
         env["HARNESS_ACCEPTANCE_DIR"] = str(self.summarize.HARNESS_DIR)
         write_command = [
             sys.executable,
@@ -283,6 +349,61 @@ class SummarizeTest(unittest.TestCase):
         self.assertTrue((run_dir / "summary.md").exists())
         check_result = subprocess.run(check_command, capture_output=True, text=True, env=env)
         self.assertEqual(check_result.returncode, 0, check_result.stderr)
+
+    def test_cli_write_preflights_both_targets_atomically(self):
+        self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
+
+        with self.subTest("existing markdown blocks json creation"):
+            run_dir = self.make_run_dir()
+            for harness in ("claude", "opencode"):
+                for case_id in self.case_ids:
+                    self.write_attempted_case(run_dir, harness, case_id)
+            summary_md_path = run_dir / "summary.md"
+            summary_md_path.write_text("existing markdown\n", encoding="utf-8")
+            env = dict(os.environ)
+            env["HARNESS_ACCEPTANCE_DIR"] = str(self.summarize.HARNESS_DIR)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(HARNESS_DIR / "summarize.py"),
+                    "--run-dir",
+                    str(run_dir),
+                    "--write",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse((run_dir / "summary.json").exists())
+            self.assertEqual(summary_md_path.read_text(encoding="utf-8"), "existing markdown\n")
+            self.assertIn("summary.md", result.stderr)
+
+        with self.subTest("existing json blocks markdown creation"):
+            run_dir = self.make_run_dir()
+            for harness in ("claude", "opencode"):
+                for case_id in self.case_ids:
+                    self.write_attempted_case(run_dir, harness, case_id)
+            summary_json_path = run_dir / "summary.json"
+            summary_json_path.write_text('{"existing": true}\n', encoding="utf-8")
+            env = dict(os.environ)
+            env["HARNESS_ACCEPTANCE_DIR"] = str(self.summarize.HARNESS_DIR)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(HARNESS_DIR / "summarize.py"),
+                    "--run-dir",
+                    str(run_dir),
+                    "--write",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse((run_dir / "summary.md").exists())
+            self.assertEqual(summary_json_path.read_text(encoding="utf-8"), '{"existing": true}\n')
+            self.assertIn("summary.json", result.stderr)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+committed artifact: /tmp/committed-tree/tests/harness-acceptance/redact.py

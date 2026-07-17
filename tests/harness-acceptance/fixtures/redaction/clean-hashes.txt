@@ -1,3 +1,4 @@
 endpoint_identity_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 proof_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 final_response_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+artifact_path: tests/harness-acceptance/fixtures/summary/base-model-proof.json

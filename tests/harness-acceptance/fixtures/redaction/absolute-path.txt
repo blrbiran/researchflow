@@ -1,0 +1,1 @@
+scratch artifact: /private/tmp/live-harness-run/summary.json

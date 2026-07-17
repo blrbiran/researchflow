@@ -3,5 +3,6 @@
   "harness": "opencode",
   "status": "pass",
   "plugin_proof_strength": "resolved_runtime_source_inventory_canary",
+  "plugin_source_id": "researchflow-checkout",
   "isolation_profile": "workspace-config-runtime-proof"
 }

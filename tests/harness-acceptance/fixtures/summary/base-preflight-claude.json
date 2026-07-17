@@ -3,5 +3,6 @@
   "harness": "claude",
   "status": "pass",
   "plugin_proof_strength": "best_available_source_plus_canary",
+  "plugin_source_id": "researchflow-checkout",
   "isolation_profile": "auth-preserving-direct-plugin-dir"
 }

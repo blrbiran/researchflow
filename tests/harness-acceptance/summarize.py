@@ -145,10 +145,13 @@ def _read_harness_state(run_dir: Path, harness: str, identities: dict[str, Any])
         raise ValueError(f"preflight.{harness}.status must be one of {PREFLIGHT_STATUSES}")
     plugin_proof_strength = preflight.get("plugin_proof_strength", capability.get("plugin_proof_strength"))
     isolation_profile = preflight.get("isolation_profile", capability.get("selected_isolation_profile"))
+    preflight_plugin_source_id = preflight.get("plugin_source_id")
     if not isinstance(plugin_proof_strength, str) or not plugin_proof_strength:
         raise ValueError(f"{harness} plugin_proof_strength missing")
     if not isinstance(isolation_profile, str) or not isolation_profile:
         raise ValueError(f"{harness} isolation_profile missing")
+    if preflight_plugin_source_id is not None:
+        preflight_plugin_source_id = _require_string(preflight_plugin_source_id, f"preflight.{harness}.plugin_source_id")
     inspected = _inspect_model_proof(model_proof, identities)
     return {
         "capability": capability,
@@ -156,6 +159,7 @@ def _read_harness_state(run_dir: Path, harness: str, identities: dict[str, Any])
         "preflight_status": preflight_status,
         "plugin_proof_strength": plugin_proof_strength,
         "isolation_profile": isolation_profile,
+        "preflight_plugin_source_id": preflight_plugin_source_id,
         "model_proof": model_proof,
         "validated_identity": inspected["canonical_identity"],
         "proof_identity": inspected["proof_identity"],
@@ -197,6 +201,7 @@ def _read_attempted_cases(run_dir: Path, harness: str) -> dict[str, dict[str, An
             raise ValueError(f"verdict response sha mismatch in {case_dir}")
         if verdict_case_id in attempted:
             raise ValueError(f"duplicate case artifact for {harness}/{verdict_case_id}")
+        plugin_source_id = _require_string(invocation.get("plugin_source_id"), f"{invocation_path}.plugin_source_id")
         contamination = verdict.get("contamination")
         contaminated = False
         contamination_reasons: list[str] = []
@@ -215,6 +220,7 @@ def _read_attempted_cases(run_dir: Path, harness: str) -> dict[str, dict[str, An
             "status": verdict_status,
             "observed_phase": verdict.get("observed_phase"),
             "response_sha256": response_sha256,
+            "plugin_source_id": plugin_source_id,
             "contaminated": contaminated,
             "contamination_reasons": contamination_reasons,
         }
@@ -237,18 +243,41 @@ def _alignment_reason(states: dict[str, dict[str, Any]]) -> tuple[bool, Optional
 def _validate_prefix(case_order: list[str], attempted: dict[str, dict[str, Any]], harness: str) -> int:
     prefix_len = 0
     missing_seen = False
+    harness_error_seen = False
     for case_id in case_order:
         present = case_id in attempted
         if present and missing_seen:
             raise ValueError(f"{harness} attempted cases must form a manifest prefix")
         if present:
+            if harness_error_seen:
+                raise ValueError(f"{harness} attempted case artifact appears after harness_error: {case_id}")
             prefix_len += 1
+            if attempted[case_id]["status"] == "harness_error":
+                harness_error_seen = True
         else:
             missing_seen = True
     extras = set(attempted) - set(case_order)
     if extras:
         raise ValueError(f"unexpected case artifact(s) for {harness}: {sorted(extras)}")
     return prefix_len
+
+
+def _resolve_plugin_source_id(harness: str, attempted: dict[str, dict[str, Any]], state: dict[str, Any]) -> str:
+    preflight_source_id = state.get("preflight_plugin_source_id")
+    attempted_source_ids = {row["plugin_source_id"] for row in attempted.values()}
+    if len(attempted_source_ids) > 1:
+        raise ValueError(f"conflicting plugin_source_id values for {harness}: {sorted(attempted_source_ids)}")
+    if attempted_source_ids:
+        attempted_source_id = next(iter(attempted_source_ids))
+        if preflight_source_id is not None and preflight_source_id != attempted_source_id:
+            raise ValueError(
+                f"conflicting plugin_source_id between preflight and attempted artifacts for {harness}: "
+                f"{preflight_source_id} != {attempted_source_id}"
+            )
+        return attempted_source_id
+    if preflight_source_id is None:
+        raise ValueError(f"{harness} plugin_source_id missing from preflight proof")
+    return preflight_source_id
 
 
 def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
@@ -296,8 +325,7 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
             for harness in HARNESSES:
                 harness_attempted = attempted[harness]
                 prefix_len = _validate_prefix(case_order, harness_attempted, harness)
-                previous_statuses = [harness_attempted[item]["status"] for item in case_order[:prefix_len]]
-                stopped = "harness_error" in previous_statuses
+                stopped = any(harness_attempted[item]["status"] == "harness_error" for item in case_order[:prefix_len])
                 for case_id in case_order:
                     if case_id in harness_attempted:
                         accounting_rows.append(dict(harness_attempted[case_id]))
@@ -340,9 +368,11 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
                 contaminated_case_ids.append(row["case_id"])
         if sum(verdict_counts.values()) != CASES_PER_HARNESS:
             verdict_counts_valid = False
+        plugin_source_id = _resolve_plugin_source_id(harness, attempted[harness], states[harness])
         harness_summaries[harness] = {
             "preflight": states[harness]["preflight_status"],
             "plugin_proof_strength": states[harness]["plugin_proof_strength"],
+            "plugin_source_id": plugin_source_id,
             "resolved_model_identity": states[harness]["validated_identity"] or states[harness]["proof_identity"],
             "isolation_profile": states[harness]["isolation_profile"],
             "verdict_counts": verdict_counts,
@@ -423,7 +453,7 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
             [
                 f"### {harness}",
                 f"- Preflight: `{harness_summary['preflight']}`",
-                f"- Plugin proof strength: `{harness_summary['plugin_proof_strength']}`",
+                f"- Plugin proof strength: `{harness_summary['plugin_proof_strength']}` (source `{harness_summary['plugin_source_id']}`)",
                 f"- Resolved model identity: `{harness_summary['resolved_model_identity']}`",
                 f"- Isolation profile: `{harness_summary['isolation_profile']}`",
                 (
@@ -516,9 +546,12 @@ def main() -> int:
     summary_json_path = run_dir / "summary.json"
     summary_md_path = run_dir / "summary.md"
     if args.write:
+        existing_targets = [path for path in (summary_json_path, summary_md_path) if path.exists()]
+        if existing_targets:
+            if len(existing_targets) == 1:
+                raise FileExistsError(existing_targets[0])
+            raise FileExistsError("summary.json and summary.md already exist")
         write_json(summary_json_path, summary)
-        if summary_md_path.exists():
-            raise FileExistsError(summary_md_path)
         summary_md_path.write_text(markdown, encoding="utf-8")
     elif args.check_only:
         if not summary_json_path.exists() or not summary_md_path.exists():
