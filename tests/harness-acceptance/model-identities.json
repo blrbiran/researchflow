@@ -1,0 +1,22 @@
+{
+  "allowed_provider": "openai",
+  "canonical_models": {},
+  "harness_aliases": {
+    "fable": {
+      "does_not_prove_backing_model": true,
+      "may_route_via": "litellm"
+    },
+    "haiku": {
+      "does_not_prove_backing_model": true,
+      "may_route_via": "litellm"
+    },
+    "opus": {
+      "does_not_prove_backing_model": true,
+      "may_route_via": "litellm"
+    },
+    "sonnet": {
+      "does_not_prove_backing_model": true,
+      "may_route_via": "litellm"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+Before doing any research, writing, review, or packaging work, identify
+the single ResearchFlow phase to enter first. Do not execute that phase.
+
+Your response must begin with exactly one line in this format:
+ResearchFlow phase: <phase-id>
+
+After that line, you may give at most two non-empty single-line explanations.
+Do not use headings, lists, blockquotes, or code fences.

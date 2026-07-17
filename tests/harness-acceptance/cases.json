@@ -1,0 +1,86 @@
+[
+  {
+    "case_id": "R-DIRECT-LIT",
+    "kind": "direct",
+    "prompt": "I am starting a new research paper from scratch. There is no earlier ResearchFlow artifact required before literature discovery, and I need the first phase that should gather related work, identify the closest papers, and establish a defensible research gap before any writing starts.",
+    "expected_phase": "literature-discovery",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-DIRECT-STRUCT",
+    "kind": "direct",
+    "prompt": "My Literature Map is complete and stable, and the literature-backed gap is already agreed. I need the first phase that should turn those stable upstream artifacts into a paper type decision, contribution framing, and section logic, without going backward into more search.",
+    "expected_phase": "paper-structuring",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-DIRECT-DRAFT",
+    "kind": "direct",
+    "prompt": "My Literature Map and Structure Brief are both complete and stable. I want the first phase that should rewrite a Methods section using those stable upstream artifacts, and I do not need more literature search or outline redesign first.",
+    "expected_phase": "paper-drafting",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-DIRECT-REVIEW",
+    "kind": "direct",
+    "prompt": "I have a complete manuscript draft, and the earlier literature and structure artifacts are stable enough for critique. I need the first phase that should review the manuscript, identify weaknesses, and give a revision order rather than drafting new sections immediately.",
+    "expected_phase": "paper-review",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-DIRECT-PACK",
+    "kind": "direct",
+    "prompt": "My Review Packet is resolved, the manuscript and figures are stable, and there are no unresolved review blockers left. I need the first phase that should package the stable paper into a submission PDF, supplement, and artifact README without sending me back to review.",
+    "expected_phase": "artifact-packaging",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-BACK-INTRO",
+    "kind": "backward",
+    "prompt": "Please write the Introduction section for my paper. The blocking problem is that there is no stable Literature Map yet, the research gap is still missing, and I want the first phase that should handle that missing upstream state before any introduction prose is written.",
+    "expected_phase": "literature-discovery",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?m)^##\\\\s+Introduction\\\\b",
+      "(?im)^Here is (the|a) drafted introduction section\\\\b",
+      "(?im)^Below is (the|a) polished introduction\\\\b"
+    ]
+  },
+  {
+    "case_id": "R-BACK-PDF",
+    "kind": "backward",
+    "prompt": "Please export a submission PDF for this project. The blocking state is unresolved review blockers, no stable Review Packet, and no sign-off that packaging should start, so I need the first phase that should handle that missing review stability before any export work happens.",
+    "expected_phase": "paper-review",
+    "required_marker": "ResearchFlow phase:",
+    "forbidden_patterns": [
+      "(?im)^Export complete\\\\b",
+      "(?im)^Here is (the|a) packaged submission bundle\\\\b",
+      "(?im)^Below is (the|a) artifact readme\\\\b"
+    ]
+  }
+]
