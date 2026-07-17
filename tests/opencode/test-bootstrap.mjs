@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ResearchflowPlugin } from '../../.opencode/plugins/researchflow.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const expectedSkillsPath = path.resolve(__dirname, '../../skills');
 const plugin = await ResearchflowPlugin({});
 
 const config = {};
 await plugin.config(config);
 assert.ok(config.skills?.paths?.length, 'skills.paths should be populated');
 assert.ok(
-  config.skills.paths.some((p) => p.endsWith('/reference/researchflow/skills')),
-  'skills path should include researchflow/skills'
+  config.skills.paths.some((p) => path.resolve(p) === expectedSkillsPath),
+  `skills path should include ${expectedSkillsPath}`
 );
 
 const output = {

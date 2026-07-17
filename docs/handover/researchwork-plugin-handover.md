@@ -3,7 +3,7 @@
 > Updated: 2026-07-17  
 > Plugin repository: `reference/researchflow/`  
 > Remote: `git@github.com:blrbiran/researchflow.git`  
-> Branch: `main`
+> Branch: `feat/unified-router-thin-v1`
 
 ## 1. Purpose and settled decisions
 
@@ -24,11 +24,10 @@ Settled decisions:
 At handover time:
 
 - `reference/researchflow/` is a nested standalone git repository, not a parent-repo submodule.
-- Local branch: `main`.
-- HEAD: `e593522 Add a survey-oriented ResearchFlow demo.`
-- Upstream state: local `main` is **1 commit ahead** of `origin/main` (`0 behind / 1 ahead`).
-- Nested working tree is clean.
-- The latest commit has **not been pushed** in this session.
+- Local branch: `feat/unified-router-thin-v1`.
+- Current thin-router delivery on this branch builds on `b3adc46 test: add researchflow router acceptance check` and includes this final review-alignment follow-up.
+- The thin-router stack on top of `4e23dcc` includes `2e0aa64`, `9862424`, `b3adc46`, plus the post-`b3adc46` final review fix wave.
+- Remote tracking / push state for `feat/unified-router-thin-v1` is not recorded here; verify it explicitly before pushing.
 - All plugin manifests currently report version `0.1.0`:
   - `package.json`
   - `.claude-plugin/plugin.json`
@@ -50,7 +49,7 @@ Important parent-repo state:
 - `.agents/plugins/marketplace.json`
 - `docs/README.claude.md`
 
-The Claude test currently validates metadata and required files. It does not perform a live Claude Code plugin installation.
+The Claude test currently validates metadata and required files plus a repo-local routing-doc check anchored to `docs/workflow-contracts.md`. It does not perform a live Claude Code plugin installation.
 
 ### OpenCode surface
 
@@ -156,7 +155,7 @@ Required fields:
 - `go_no_go`
 - `remaining_manual_checks`
 
-Routing invariant: `using-researchflow` should repair or produce the earliest missing/unstable artifact instead of jumping to the user's most downstream requested action.
+Routing invariant: Route to the earliest missing or unstable artifact, not merely to the section or file the user mentions.
 
 ## 5. Demo coverage
 
@@ -202,9 +201,10 @@ The unified runner executes:
 
 1. OpenCode bootstrap smoke test;
 2. Claude manifest/support-file smoke test;
-3. agent-memory demo contract test;
-4. benchmark-ambiguity demo contract test;
-5. LLM-judge survey demo contract test.
+3. Claude routing-doc smoke test;
+4. agent-memory demo contract test;
+5. benchmark-ambiguity demo contract test;
+6. LLM-judge survey demo contract test.
 
 Verified on 2026-07-17: **all tests pass**.
 
@@ -229,6 +229,10 @@ The demo tests validate:
 
 Most recent first:
 
+- current branch tip — final whole-branch review fixes for contract-backed routing coverage, router-surface cleanup, and handover refresh.
+- `b3adc46` — repo-local router acceptance check.
+- `9862424` — thin-router doc alignment.
+- `2e0aa64` — thin-router skill tightening.
 - `e593522` — survey/synthesis demo.
 - `1614a87` — benchmark/evaluation demo.
 - `aa75e01` — unified test entrypoint.

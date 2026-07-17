@@ -13,7 +13,7 @@ ResearchFlow is the default workflow layer for research and paper-writing work.
 
 ## The rule
 
-Before doing substantive work, identify the user's current phase and route to the matching phase skill. Do not expose a long menu of overlapping specialist skills unless the user explicitly asks for expert mode.
+Before doing substantive work, identify the user's current phase and route to the matching phase skill. Do not expose a long menu of overlapping specialist skills or alternate public router surfaces.
 
 ## Thin-router invariants
 
@@ -24,7 +24,7 @@ For ResearchFlow V1, `using-researchflow` is a thin router, not a skill marketpl
 - The only first-class routing targets remain `literature-discovery`, `paper-structuring`, `paper-drafting`, `paper-review`, and `artifact-packaging`.
 - External reference libraries may not introduce new top-level phases in V1.
 - Surface intent proposes a phase; artifact stability confirms it or routes to an earlier phase.
-- Support behavior stays subordinate and mostly invisible unless the user explicitly asks for expert mode or a named support skill.
+- Support behavior stays subordinate and mostly invisible unless the user explicitly asks for a named support skill.
 
 ## The phase model
 
@@ -69,7 +69,7 @@ ResearchFlow uses an artifact-driven contract chain:
 Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet
 ```
 
-See `docs/workflow-contracts.md` for the full contract definition. The routing layer should prefer repairing or producing the missing upstream artifact instead of continuing downstream with an unstable handoff.
+See `docs/workflow-contracts.md` for the full contract definition. Route to the earliest missing or unstable artifact, not merely to the section or file the user mentions.
 
 ## Routing algorithm
 
@@ -78,9 +78,10 @@ See `docs/workflow-contracts.md` for the full contract definition. The routing l
 When a request spans multiple phases, route to the earliest phase that is still missing a stable output.
 
 Examples:
-- If the user asks for an Introduction but does not yet have a clear literature-backed gap, start with `literature-discovery`.
-- If the user asks for a full draft but the contributions and section logic are still fuzzy, start with `paper-structuring`.
-- If the user asks to export a PDF from a still-unreviewed manuscript, start with `paper-review` unless they explicitly want a rough internal PDF.
+- “Write the introduction” with no Literature Map -> start at `literature-discovery`
+- “Draft the paper” with no Structure Brief -> start at `paper-structuring`
+- “Export a PDF” with unresolved Review Packet blockers -> start at `paper-review`
+- “Are we ready to submit?” with no Submission Packet -> start at `artifact-packaging` or `submission-readiness`, depending on whether the surface is still incomplete or just needs a final gate
 
 ### Step 2: Use one primary phase skill
 
@@ -178,7 +179,7 @@ Good clarifications:
 - “Are you asking for a general review, or a final submission gate?”
 
 Do not ask questions whose answers can be inferred from the user's files or stated intent.
-Do not expose the whole routing graph unless the user explicitly asks for expert mode.
+Do not expose the whole routing graph by default; explain deeper routing details only if the user asks for them.
 
 ## Operating rules
 
@@ -187,7 +188,7 @@ Do not expose the whole routing graph unless the user explicitly asks for expert
 - Treat factual accuracy and evidence discipline as mandatory.
 - Never invent citations, results, datasets, or comparisons.
 - Start with the earliest blocked phase rather than drafting around missing structure or evidence.
-- If the user explicitly asks for expert mode or a named support skill, honor that request.
+- If the user explicitly asks for a named support skill, honor that request.
 
 ## Default behavior
 
