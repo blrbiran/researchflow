@@ -166,7 +166,14 @@ def load_cases(root: Path) -> list[dict[str, Any]]:
         _require_enum(case["expected_phase"], f"cases[{index}].expected_phase", PHASES)
         if case["required_marker"] != "ResearchFlow phase:":
             raise ValueError(f"cases[{index}].required_marker must equal 'ResearchFlow phase:'")
-        _require_string_list(case["forbidden_patterns"], f"cases[{index}].forbidden_patterns")
+        forbidden_patterns = _require_string_list(case["forbidden_patterns"], f"cases[{index}].forbidden_patterns")
+        for pattern_index, pattern in enumerate(forbidden_patterns):
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                raise ValueError(
+                    f"cases[{index}].forbidden_patterns[{pattern_index}] invalid regex: {exc}"
+                ) from exc
         cases.append(case)
     return cases
 

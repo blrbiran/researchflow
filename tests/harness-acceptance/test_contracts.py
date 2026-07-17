@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,13 +26,90 @@ EXPECTED_REASON_CODES = (
     "runtime_harness_stopped",
 )
 EXPECTED_CASES = [
-    ("R-DIRECT-LIT", "direct", "literature-discovery"),
-    ("R-DIRECT-STRUCT", "direct", "paper-structuring"),
-    ("R-DIRECT-DRAFT", "direct", "paper-drafting"),
-    ("R-DIRECT-REVIEW", "direct", "paper-review"),
-    ("R-DIRECT-PACK", "direct", "artifact-packaging"),
-    ("R-BACK-INTRO", "backward", "literature-discovery"),
-    ("R-BACK-PDF", "backward", "paper-review"),
+    {
+        "case_id": "R-DIRECT-LIT",
+        "kind": "direct",
+        "prompt": "I am starting a new research paper from scratch. There is no earlier ResearchFlow artifact required before literature discovery, and I need the first phase that should gather related work, identify the closest papers, and establish a defensible research gap before any writing starts.",
+        "expected_phase": "literature-discovery",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+(Introduction|Methods|Results|Discussion|Conclusion)\b",
+            r"(?im)^Here is (the|a) (revised|drafted) .+ section\b",
+            r"(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\b",
+        ],
+    },
+    {
+        "case_id": "R-DIRECT-STRUCT",
+        "kind": "direct",
+        "prompt": "My Literature Map is complete and stable, and the literature-backed gap is already agreed. I need the first phase that should turn those stable upstream artifacts into a paper type decision, contribution framing, and section logic, without going backward into more search.",
+        "expected_phase": "paper-structuring",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+(Introduction|Methods|Results|Discussion|Conclusion)\b",
+            r"(?im)^Here is (the|a) (revised|drafted) .+ section\b",
+            r"(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\b",
+        ],
+    },
+    {
+        "case_id": "R-DIRECT-DRAFT",
+        "kind": "direct",
+        "prompt": "My Literature Map and Structure Brief are both complete and stable. I want the first phase that should rewrite a Methods section using those stable upstream artifacts, and I do not need more literature search or outline redesign first.",
+        "expected_phase": "paper-drafting",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+(Introduction|Methods|Results|Discussion|Conclusion)\b",
+            r"(?im)^Here is (the|a) (revised|drafted) .+ section\b",
+            r"(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\b",
+        ],
+    },
+    {
+        "case_id": "R-DIRECT-REVIEW",
+        "kind": "direct",
+        "prompt": "I have a complete manuscript draft, and the earlier literature and structure artifacts are stable enough for critique. I need the first phase that should review the manuscript, identify weaknesses, and give a revision order rather than drafting new sections immediately.",
+        "expected_phase": "paper-review",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+(Introduction|Methods|Results|Discussion|Conclusion)\b",
+            r"(?im)^Here is (the|a) (revised|drafted) .+ section\b",
+            r"(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\b",
+        ],
+    },
+    {
+        "case_id": "R-DIRECT-PACK",
+        "kind": "direct",
+        "prompt": "My Review Packet is resolved, the manuscript and figures are stable, and there are no unresolved review blockers left. I need the first phase that should package the stable paper into a submission PDF, supplement, and artifact README without sending me back to review.",
+        "expected_phase": "artifact-packaging",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+(Introduction|Methods|Results|Discussion|Conclusion)\b",
+            r"(?im)^Here is (the|a) (revised|drafted) .+ section\b",
+            r"(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\b",
+        ],
+    },
+    {
+        "case_id": "R-BACK-INTRO",
+        "kind": "backward",
+        "prompt": "Please write the Introduction section for my paper. The blocking problem is that there is no stable Literature Map yet, the research gap is still missing, and I want the first phase that should handle that missing upstream state before any introduction prose is written.",
+        "expected_phase": "literature-discovery",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?m)^##\s+Introduction\b",
+            r"(?im)^Here is (the|a) drafted introduction section\b",
+            r"(?im)^Below is (the|a) polished introduction\b",
+        ],
+    },
+    {
+        "case_id": "R-BACK-PDF",
+        "kind": "backward",
+        "prompt": "Please export a submission PDF for this project. The blocking state is unresolved review blockers, no stable Review Packet, and no sign-off that packaging should start, so I need the first phase that should handle that missing review stability before any export work happens.",
+        "expected_phase": "paper-review",
+        "required_marker": "ResearchFlow phase:",
+        "forbidden_patterns": [
+            r"(?im)^Export complete\b",
+            r"(?im)^Here is (the|a) packaged submission bundle\b",
+            r"(?im)^Below is (the|a) artifact readme\b",
+        ],
+    },
 ]
 EXPECTED_SUFFIX = (
     "Before doing any research, writing, review, or packaging work, identify\n"
@@ -43,6 +121,52 @@ EXPECTED_SUFFIX = (
     "After that line, you may give at most two non-empty single-line explanations.\n"
     "Do not use headings, lists, blockquotes, or code fences.\n"
 )
+VALID_INVOCATION = {
+    "schema_version": 1,
+    "run_id": "2026-07-17T120000Z",
+    "case_id": "R-DIRECT-LIT",
+    "harness": "claude",
+    "cli_version": "2.1.212",
+    "model_request": {
+        "harness_value": "fable",
+        "proxy_kind": "litellm",
+        "endpoint_identity_sha256": "a" * 64,
+        "requested_route": "fable",
+    },
+    "model_resolution": {
+        "upstream_provider": "openai",
+        "backing_model_id": "synthetic-model",
+        "proof_source": "litellm-response-metadata",
+        "proof_sha256": "b" * 64,
+    },
+    "resolved_model_identity": "openai/synthetic-model",
+    "model_identity_verified": True,
+    "effort_or_variant": "high",
+    "timeout_seconds": 120,
+    "started_at_utc": "2026-07-17T120000Z",
+    "finished_at_utc": "2026-07-17T120015Z",
+    "exit_code": 0,
+    "timed_out": False,
+    "repo_commit_sha": "c" * 40,
+    "plugin_source_id": "researchflow-checkout",
+    "plugin_proof_passed": True,
+    "plugin_proof_strength": "best_available_source_plus_canary",
+    "isolation_profile": "auth-preserving-direct-plugin-dir",
+    "environment_contaminated": False,
+    "residual_categories": ["auth", "admin-policy"],
+    "tool_execution": {
+        "detected": False,
+        "attempted_tools": [],
+        "side_effect_status": "none",
+        "audit_complete": True,
+    },
+    "final_response_path": "final-response.txt",
+    "final_response_sha256": "d" * 64,
+    "raw_artifact_hashes": {
+        "events": "e" * 64,
+        "stderr": "f" * 64,
+    },
+}
 
 
 def load_lib():
@@ -67,29 +191,23 @@ class ContractsTest(unittest.TestCase):
 
     def test_cases_manifest_matches_shared_contract(self):
         cases = self.lib.load_cases(ROOT)
-        self.assertEqual(
-            [(case["case_id"], case["kind"], case["expected_phase"]) for case in cases],
-            EXPECTED_CASES,
-        )
-        self.assertEqual(len({case["case_id"] for case in cases}), 7)
-        for case in cases:
-            self.assertEqual(case["required_marker"], "ResearchFlow phase:")
-            self.assertIsInstance(case["prompt"], str)
-            self.assertGreater(len(case["prompt"]), 80)
-            self.assertIsInstance(case["forbidden_patterns"], list)
-            self.assertTrue(case["forbidden_patterns"])
-            self.assertTrue(all(isinstance(pattern, str) and pattern for pattern in case["forbidden_patterns"]))
-            if case["kind"] == "direct":
-                self.assertTrue(
-                    case["case_id"] == "R-DIRECT-LIT" or "stable" in case["prompt"].lower(),
-                    msg=case["case_id"],
-                )
-            else:
-                lowered = case["prompt"].lower()
-                self.assertTrue(
-                    "missing" in lowered or "unresolved" in lowered or "no stable" in lowered,
-                    msg=case["case_id"],
-                )
+        self.assertEqual(cases, EXPECTED_CASES)
+        self.assertEqual(len(cases), 7)
+
+    def test_load_cases_rejects_invalid_regex(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            harness_dir = temp_root / "tests" / "harness-acceptance"
+            harness_dir.mkdir(parents=True)
+            invalid_cases = copy.deepcopy(EXPECTED_CASES)
+            invalid_cases[0]["forbidden_patterns"][0] = "("
+            (harness_dir / "cases.json").write_text(
+                json.dumps(invalid_cases, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, r"invalid regex"):
+                self.lib.load_cases(temp_root)
 
     def test_scored_suffix_is_exact_and_harness_neutral(self):
         scored_path = HARNESS_DIR / "scored-prompt.txt"
@@ -126,60 +244,16 @@ class ContractsTest(unittest.TestCase):
                 hashlib.sha256(b"routing only\n").hexdigest(),
             )
 
-        invocation = {
-            "schema_version": 1,
-            "run_id": "2026-07-17T120000Z",
-            "case_id": "R-DIRECT-LIT",
-            "harness": "claude",
-            "cli_version": "2.1.212",
-            "model_request": {
-                "harness_value": "fable",
-                "proxy_kind": "litellm",
-                "endpoint_identity_sha256": "a" * 64,
-                "requested_route": "fable",
-            },
-            "model_resolution": {
-                "upstream_provider": "openai",
-                "backing_model_id": "gpt-5.5",
-                "proof_source": "litellm-response-metadata",
-                "proof_sha256": "b" * 64,
-            },
-            "resolved_model_identity": "openai/gpt-5.5",
-            "model_identity_verified": True,
-            "effort_or_variant": "high",
-            "timeout_seconds": 120,
-            "started_at_utc": "2026-07-17T120000Z",
-            "finished_at_utc": "2026-07-17T120015Z",
-            "exit_code": 0,
-            "timed_out": False,
-            "repo_commit_sha": "c" * 40,
-            "plugin_source_id": "researchflow-checkout",
-            "plugin_proof_passed": True,
-            "plugin_proof_strength": "best_available_source_plus_canary",
-            "isolation_profile": "auth-preserving-direct-plugin-dir",
-            "environment_contaminated": False,
-            "residual_categories": ["auth", "admin-policy"],
-            "tool_execution": {
-                "detected": False,
-                "attempted_tools": [],
-                "side_effect_status": "none",
-                "audit_complete": True,
-            },
-            "final_response_path": "final-response.txt",
-            "final_response_sha256": "d" * 64,
-            "raw_artifact_hashes": {
-                "events": "e" * 64,
-                "stderr": "f" * 64,
-            },
-        }
-        self.lib.validate_invocation(invocation)
+        self.assertEqual(VALID_INVOCATION["model_resolution"]["backing_model_id"], "synthetic-model")
+        self.assertEqual(VALID_INVOCATION["resolved_model_identity"], "openai/synthetic-model")
+        self.lib.validate_invocation(copy.deepcopy(VALID_INVOCATION))
 
-        unknown_top_level = copy.deepcopy(invocation)
+        unknown_top_level = copy.deepcopy(VALID_INVOCATION)
         unknown_top_level["unexpected"] = True
         with self.assertRaises(ValueError):
             self.lib.validate_invocation(unknown_top_level)
 
-        bad_sha = copy.deepcopy(invocation)
+        bad_sha = copy.deepcopy(VALID_INVOCATION)
         bad_sha["final_response_sha256"] = "not-a-sha"
         with self.assertRaises(ValueError):
             self.lib.validate_invocation(bad_sha)

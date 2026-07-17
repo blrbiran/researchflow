@@ -6,9 +6,9 @@
     "expected_phase": "literature-discovery",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
-      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
-      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+      "(?m)^##\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\b"
     ]
   },
   {
@@ -18,9 +18,9 @@
     "expected_phase": "paper-structuring",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
-      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
-      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+      "(?m)^##\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\b"
     ]
   },
   {
@@ -30,9 +30,9 @@
     "expected_phase": "paper-drafting",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
-      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
-      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+      "(?m)^##\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\b"
     ]
   },
   {
@@ -42,9 +42,9 @@
     "expected_phase": "paper-review",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
-      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
-      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+      "(?m)^##\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\b"
     ]
   },
   {
@@ -54,9 +54,9 @@
     "expected_phase": "artifact-packaging",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\\\b",
-      "(?im)^Here is (the|a) (revised|drafted) .+ section\\\\b",
-      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\\\b"
+      "(?m)^##\\s+(Introduction|Methods|Results|Discussion|Conclusion)\\b",
+      "(?im)^Here is (the|a) (revised|drafted) .+ section\\b",
+      "(?im)^Below is (the|a) (literature map|structure brief|review packet|artifact readme)\\b"
     ]
   },
   {
@@ -66,9 +66,9 @@
     "expected_phase": "literature-discovery",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?m)^##\\\\s+Introduction\\\\b",
-      "(?im)^Here is (the|a) drafted introduction section\\\\b",
-      "(?im)^Below is (the|a) polished introduction\\\\b"
+      "(?m)^##\\s+Introduction\\b",
+      "(?im)^Here is (the|a) drafted introduction section\\b",
+      "(?im)^Below is (the|a) polished introduction\\b"
     ]
   },
   {
@@ -78,9 +78,9 @@
     "expected_phase": "paper-review",
     "required_marker": "ResearchFlow phase:",
     "forbidden_patterns": [
-      "(?im)^Export complete\\\\b",
-      "(?im)^Here is (the|a) packaged submission bundle\\\\b",
-      "(?im)^Below is (the|a) artifact readme\\\\b"
+      "(?im)^Export complete\\b",
+      "(?im)^Here is (the|a) packaged submission bundle\\b",
+      "(?im)^Below is (the|a) artifact readme\\b"
     ]
   }
 ]
