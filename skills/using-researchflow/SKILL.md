@@ -15,6 +15,17 @@ ResearchFlow is the default workflow layer for research and paper-writing work.
 
 Before doing substantive work, identify the user's current phase and route to the matching phase skill. Do not expose a long menu of overlapping specialist skills unless the user explicitly asks for expert mode.
 
+## Thin-router invariants
+
+For ResearchFlow V1, `using-researchflow` is a thin router, not a skill marketplace.
+
+- `docs/workflow-contracts.md` remains the source of truth for the five handoff artifacts, the phase boundaries, and the default earliest-missing-or-unstable routing invariant.
+- The only public entrypoint remains `using-researchflow`.
+- The only first-class routing targets remain `literature-discovery`, `paper-structuring`, `paper-drafting`, `paper-review`, and `artifact-packaging`.
+- External reference libraries may not introduce new top-level phases in V1.
+- Surface intent proposes a phase; artifact stability confirms it or routes to an earlier phase.
+- Support behavior stays subordinate and mostly invisible unless the user explicitly asks for expert mode or a named support skill.
+
 ## The phase model
 
 ResearchFlow uses five primary phases and four support skills.
@@ -159,7 +170,7 @@ Escalate to `figure-support` when the user explicitly wants:
 
 ## Ambiguity handling
 
-Ask a clarifying question only when the request could plausibly belong to two adjacent phases and the wrong routing would waste work.
+Ask exactly one clarifying question only when the request could plausibly belong to two adjacent phases, the available files or stated intent do not resolve the ambiguity, and the wrong routing choice would waste work.
 
 Good clarifications:
 - “Do you already have a stable related-work set, or should I start by finding the closest papers?”
@@ -167,6 +178,7 @@ Good clarifications:
 - “Are you asking for a general review, or a final submission gate?”
 
 Do not ask questions whose answers can be inferred from the user's files or stated intent.
+Do not expose the whole routing graph unless the user explicitly asks for expert mode.
 
 ## Operating rules
 
