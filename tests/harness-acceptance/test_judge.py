@@ -128,6 +128,31 @@ class JudgeTest(unittest.TestCase):
         self.assertEqual(verdict["verdict"], "fail")
         self.assertEqual(len(verdict["forbidden_pattern_matches"]), 1)
 
+    def test_blocked_tool_without_complete_audit_is_harness_error(self):
+        case = self.cases["R-DIRECT-LIT"]
+        response = read_text_preserving_newlines(FIXTURE_DIR / "responses" / "correct-marker.txt")
+        invocation = self.build_invocation(
+            {
+                "case_id": "R-DIRECT-LIT",
+                "invocation_overrides": {
+                    "tool_execution": {
+                        "detected": True,
+                        "attempted_tools": ["web_fetch"],
+                        "side_effect_status": "blocked",
+                        "audit_complete": False,
+                    }
+                },
+            },
+            response,
+        )
+
+        verdict = self.judge_module.judge(case, invocation, response)
+
+        self.assertEqual(verdict["observed_phase"], "literature-discovery")
+        self.assertEqual(verdict["verdict"], "harness_error")
+        self.assertFalse(verdict["contamination"]["contaminated"])
+        self.assertEqual(verdict["contamination"]["reasons"], [])
+
     def test_cli_writes_verdict_json_and_refuses_overwrite(self):
         scenario = next(item for item in self.scenarios if item["name"] == "correct-marker")
         response = read_text_preserving_newlines(FIXTURE_DIR / scenario["response_file"])

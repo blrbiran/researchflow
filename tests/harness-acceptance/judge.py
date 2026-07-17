@@ -115,11 +115,20 @@ def _observed_phase(lines: list[str], marker_count: int) -> str | None:
     return match.group(1)
 
 
-def _contamination(invocation: dict[str, Any]) -> dict[str, Any]:
+def _blocked_tool_is_diagnostic(invocation: dict[str, Any], response_sha256: str) -> bool:
+    tool_execution = invocation["tool_execution"]
+    return (
+        tool_execution["side_effect_status"] == "blocked"
+        and tool_execution["audit_complete"]
+        and invocation["final_response_sha256"] == response_sha256
+    )
+
+
+def _contamination(invocation: dict[str, Any], response_sha256: str) -> dict[str, Any]:
     reasons: list[str] = []
     if invocation["environment_contaminated"]:
         reasons.append("environment_contaminated")
-    if invocation["tool_execution"]["side_effect_status"] == "blocked":
+    if _blocked_tool_is_diagnostic(invocation, response_sha256):
         reasons.append("tool_call_blocked")
     return {"contaminated": bool(reasons), "reasons": reasons}
 
@@ -133,8 +142,11 @@ def _fatal_harness_error(invocation: dict[str, Any], response_sha256: str) -> bo
         return True
     if invocation["final_response_sha256"] != response_sha256:
         return True
-    tool_status = invocation["tool_execution"]["side_effect_status"]
+    tool_execution = invocation["tool_execution"]
+    tool_status = tool_execution["side_effect_status"]
     if tool_status in {"executed", "unknown"}:
+        return True
+    if tool_status == "blocked" and not tool_execution["audit_complete"]:
         return True
     return False
 
@@ -150,7 +162,7 @@ def judge(case: dict[str, Any], invocation: dict[str, Any], response: str) -> di
     observed_phase = _observed_phase(lines, marker_count)
     matched_evidence = _matched_evidence(observed_phase, marker_count, response_sha256)
     forbidden_pattern_matches = _forbidden_pattern_matches(case, normalized_response)
-    contamination = _contamination(invocation)
+    contamination = _contamination(invocation, response_sha256)
     structural_invalid = _structural_invalid(lines, marker_count)
     fatal_harness_error = _fatal_harness_error(invocation, response_sha256)
 
