@@ -17,6 +17,7 @@ Settled decisions:
 - Core workflow is artifact-driven and routes to the earliest missing or unstable handoff.
 - The plugin consolidates ideas from the reference skill libraries; it does not depend on those repositories at runtime.
 - Support skills remain subordinate to one primary phase per turn.
+- Router model: thin router; `using-researchflow` remains the sole public entrypoint, routes onto the existing five-phase contract chain, and asks at most one clarification question for adjacent high-cost ambiguity.
 
 ## 2. Current verified repository state
 
@@ -241,7 +242,7 @@ Most recent first:
 
 ## 9. Known limitations and unresolved work
 
-- Claude Code integration has only metadata/file smoke coverage; no clean-session live install/auto-routing transcript exists yet.
+- Claude Code integration now has local metadata/file smoke coverage plus repo-local routing-doc smoke coverage, but it still lacks a clean-session live install/auto-routing transcript.
 - OpenCode bridge has an in-process smoke test, not a full external OpenCode session test.
 - Demo tests validate schema presence/non-empty sections, not semantic quality or cross-artifact consistency.
 - Required-field definitions are duplicated between the contract doc and demo test scripts; schema drift is possible.

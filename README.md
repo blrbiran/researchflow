@@ -2,6 +2,8 @@
 
 ResearchFlow is a plugin-shaped skills library for research and paper-writing agents.
 
+ResearchFlow V1 keeps that entrypoint as a thin router: direct routing by default, exactly one clarifying question only for high-cost adjacent-phase ambiguity, and no extra top-level phases beyond the existing five-stage workflow. Surface intent proposes a phase; artifact stability confirms it or routes earlier.
+
 It is designed around a small number of workflow stages instead of a long list of overlapping specialist skills. The default entrypoint is `using-researchflow`, which routes the session into the right phase skill.
 
 ## Initial targets

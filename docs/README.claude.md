@@ -32,6 +32,8 @@ Minimal acceptance check:
 Expected result:
 - the agent treats this as a `literature-discovery` request
 - it does **not** jump directly into prose drafting
+- If the user asks to write an introduction without a stable literature-backed gap, the router should still start at `literature-discovery`.
+- If the user asks to export a PDF from a still-unreviewed manuscript, the router should still start at `paper-review`.
 
 ## Local smoke check
 

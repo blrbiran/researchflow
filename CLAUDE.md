@@ -7,6 +7,9 @@ ResearchFlow is a standalone plugin for research and paper-writing workflows.
 - Prioritize Claude Code and OpenCode first.
 - Prefer a small number of strong phase skills over many overlapping skills.
 - Route similar asks through `using-researchflow` instead of exposing every specialist skill directly.
+- Keep `using-researchflow` as a thin router over the existing five-phase workflow.
+- Default to direct routing; ask one clarifying question only for high-cost adjacent-phase ambiguity.
+- Do not turn support skills or external references into peer top-level routes.
 
 ## Skill design rules
 
