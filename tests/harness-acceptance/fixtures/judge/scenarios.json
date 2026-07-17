@@ -1,0 +1,323 @@
+[
+  {
+    "name": "correct-marker",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "expected": {
+      "verdict": "pass",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "wrong-marker",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/wrong-marker.txt",
+    "expected": {
+      "verdict": "fail",
+      "observed_phase": "paper-review",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "missing-marker",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/missing-marker.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": null,
+      "marker_count": 0,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "duplicate-matching-markers",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/duplicate-matching.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": null,
+      "marker_count": 2,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "duplicate-conflicting-markers",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/duplicate-conflicting.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": null,
+      "marker_count": 2,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "illegal-phase-id",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/illegal-phase.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": null,
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "marker-non-first",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/non-first-marker.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": null,
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "excess-lines",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/excess-lines.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "heading-explanation",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/heading.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "list-explanation",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/list.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "blockquote-explanation",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/blockquote.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "fence-explanation",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/fence.txt",
+    "expected": {
+      "verdict": "indeterminate",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "forbidden-output",
+    "case_id": "R-BACK-INTRO",
+    "response_file": "responses/forbidden-output.txt",
+    "expected": {
+      "verdict": "fail",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 1,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "explanatory-phase-mention",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/explanatory-phase-mention.txt",
+    "expected": {
+      "verdict": "pass",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "non-zero-exit",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "exit_code": 7
+    },
+    "expected": {
+      "verdict": "harness_error",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "timeout",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "timed_out": true
+    },
+    "expected": {
+      "verdict": "harness_error",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "plugin-proof-failure",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "plugin_proof_passed": false
+    },
+    "expected": {
+      "verdict": "harness_error",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "blocked-tool-call",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "tool_execution": {
+        "detected": true,
+        "attempted_tools": [
+          "web_fetch"
+        ],
+        "side_effect_status": "blocked",
+        "audit_complete": true
+      }
+    },
+    "expected": {
+      "verdict": "pass",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": true,
+      "contamination_reasons": [
+        "tool_call_blocked"
+      ]
+    }
+  },
+  {
+    "name": "executed-tool-call",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "tool_execution": {
+        "detected": true,
+        "attempted_tools": [
+          "web_fetch"
+        ],
+        "side_effect_status": "executed",
+        "audit_complete": true
+      }
+    },
+    "expected": {
+      "verdict": "harness_error",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  },
+  {
+    "name": "unknown-tool-result",
+    "case_id": "R-DIRECT-LIT",
+    "response_file": "responses/correct-marker.txt",
+    "invocation_overrides": {
+      "tool_execution": {
+        "detected": true,
+        "attempted_tools": [
+          "web_fetch"
+        ],
+        "side_effect_status": "unknown",
+        "audit_complete": false
+      }
+    },
+    "expected": {
+      "verdict": "harness_error",
+      "observed_phase": "literature-discovery",
+      "marker_count": 1,
+      "forbidden_match_count": 0,
+      "environment_contaminated": false,
+      "contaminated": false,
+      "contamination_reasons": []
+    }
+  }
+]

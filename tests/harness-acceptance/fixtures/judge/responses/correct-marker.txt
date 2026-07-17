@@ -1,0 +1,3 @@
+ResearchFlow phase: literature-discovery
+Gather related work before drafting.
+Gap framing depends on a stable literature map.

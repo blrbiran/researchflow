@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-07-17T120000Z",
+  "case_id": "R-DIRECT-LIT",
+  "harness": "claude",
+  "cli_version": "2.1.212",
+  "model_request": {
+    "harness_value": "fable",
+    "proxy_kind": "litellm",
+    "endpoint_identity_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "requested_route": "fable"
+  },
+  "model_resolution": {
+    "upstream_provider": "openai",
+    "backing_model_id": "synthetic-model",
+    "proof_source": "litellm-response-metadata",
+    "proof_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "resolved_model_identity": "openai/synthetic-model",
+  "model_identity_verified": true,
+  "effort_or_variant": "high",
+  "timeout_seconds": 120,
+  "started_at_utc": "2026-07-17T120000Z",
+  "finished_at_utc": "2026-07-17T120015Z",
+  "exit_code": 0,
+  "timed_out": false,
+  "repo_commit_sha": "cccccccccccccccccccccccccccccccccccccccc",
+  "plugin_source_id": "researchflow-checkout",
+  "plugin_proof_passed": true,
+  "plugin_proof_strength": "best_available_source_plus_canary",
+  "isolation_profile": "auth-preserving-direct-plugin-dir",
+  "environment_contaminated": false,
+  "residual_categories": [
+    "auth",
+    "admin-policy"
+  ],
+  "tool_execution": {
+    "detected": false,
+    "attempted_tools": [],
+    "side_effect_status": "none",
+    "audit_complete": true
+  },
+  "final_response_path": "final-response.txt",
+  "final_response_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "raw_artifact_hashes": {
+    "events": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "stderr": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+}

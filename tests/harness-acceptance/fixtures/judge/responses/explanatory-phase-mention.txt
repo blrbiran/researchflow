@@ -1,0 +1,2 @@
+ResearchFlow phase: literature-discovery
+Paper-drafting can happen later after the literature map is stable.
