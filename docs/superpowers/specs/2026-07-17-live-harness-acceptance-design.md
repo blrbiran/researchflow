@@ -244,7 +244,9 @@ tests/harness-acceptance/
         │   └── opencode.json
         ├── preflight/
         │   ├── claude.json
-        │   └── opencode.json
+        │   ├── claude-model-proof.json
+        │   ├── opencode.json
+        │   └── opencode-model-proof.json
         ├── environment.json
         ├── summary.json
         ├── summary.md
@@ -439,7 +441,30 @@ If any condition fails, no scored case runs. The complete run record sets `model
 
 Only an aligned run may set `cross_harness_model_confound = false`. Because equality is mechanically reconstructed from verified canonical identities, it is not an analyst judgment.
 
-### 6.4 Tool boundary and mechanical classification
+### 6.4 Committed model-proof artifacts
+
+Each harness preflight writes and commits `preflight/<harness>-model-proof.json`:
+
+```json
+{
+  "schema_version": 1,
+  "harness": "claude",
+  "proxy_kind": "litellm",
+  "endpoint_identity_sha256": "<sha256>",
+  "requested_route": "fable",
+  "upstream_provider": "openai",
+  "backing_model_id": "gpt-5.5",
+  "resolved_model_identity": "openai/gpt-5.5",
+  "proof_method": "litellm-response-metadata",
+  "proof_sha256": "<sha256>",
+  "verified": true,
+  "redaction_passed": true
+}
+```
+
+This committed artifact must contain enough allowlisted fields to reconstruct model alignment without the local raw-artifact store. If raw proof cannot be transformed into a redacted committed proof with `verified = true`, model alignment is blocked and no scored case runs.
+
+### 6.5 Tool boundary and mechanical classification
 
 Claude scored runs use `--tools ""`. OpenCode scored runs use a no-tool or deny-all profile only when capability probe proves one; otherwise the residual capability is recorded.
 
@@ -456,16 +481,16 @@ Every invocation records:
 }
 ```
 
-`side_effect_status` is one of `none`, `blocked`, `audited`, `unaudited`, or `unknown`.
+`side_effect_status` is one of `none`, `blocked`, `executed`, or `unknown`.
 
 Classification is fixed:
 
 - no tool event: `none`, no contamination from tools;
-- rejected tool call with no side effect and complete event stream: `blocked`, invocation contaminated but verdict may be retained diagnostically;
-- successful tool execution with complete, bounded side-effect audit: `audited`, invocation contaminated and excluded from acceptance;
-- unauditable side effect, incomplete response/event stream, lost fresh-session correspondence, `unaudited`, or `unknown`: `harness_error`.
+- rejected tool call with no side effect and complete event stream/final response: `blocked`, invocation contaminated but verdict may be retained diagnostically;
+- any successfully executed tool: `executed`, always `harness_error` regardless of apparent side-effect scope;
+- incomplete tool event, unknown success, incomplete final response, or lost fresh-session correspondence: `unknown`, always `harness_error`.
 
-The two adapters must implement this same mapping.
+No adapter may classify a successful tool execution as merely audited contamination. The two adapters must implement this same mapping.
 ## 7. Harness capability probes and isolation profiles
 
 Each adapter writes `capabilities/<harness>.json` before preflight.
@@ -505,7 +530,7 @@ claude -p
 --effort <level>
 ```
 
-`claude plugin validate <researchflow-root>` may contribute manifest evidence only when the installed CLI exposes and successfully executes that command.
+The adapter must always validate `.claude-plugin/plugin.json`, the marketplace manifest, and required skill files against committed schemas. `claude plugin validate <researchflow-root>` is optional enhancement evidence used only when capability probe confirms that the installed CLI exposes and successfully executes it; absence of that subcommand does not block an otherwise proved load branch.
 
 #### Branch B: local marketplace install
 
@@ -536,11 +561,21 @@ When Claude lacks a runtime resolved-source or runtime skill-inventory surface e
 }
 ```
 
-The minimum evidence is manifest validation when available, explicit load-source command metadata, checkout SHA, static inventory of the repo's `using-researchflow` and five primary phase skills, and a canary probe under the scored isolation profile.
+The minimum evidence is adapter-side schema validation of the plugin/marketplace manifests and required skill files, explicit load-source command metadata, checkout SHA, static inventory of the repo's `using-researchflow` and five primary phase skills, and a canary probe under the scored isolation profile. CLI-native metadata validation, when available, strengthens but does not define the minimum proof.
 
 OpenCode may record the stronger value `resolved_runtime_source_inventory_canary` when its resolved config and skill inventory are available. Summary must disclose this proof-strength asymmetry and must not imply equivalent runtime proof.
 
-### 7.4 OpenCode isolation profile
+### 7.4 OpenCode capability-proved proof branches
+
+OpenCode capability probe checks `debug config`, `debug paths`, and `debug skill` independently. No specific debug subcommand is assumed across builds.
+
+**Strong runtime proof** uses all three supported debug surfaces to record resolved plugin source, effective paths, runtime skill inventory, and canary. It records `plugin_proof_strength = "resolved_runtime_source_inventory_canary"`.
+
+**Fallback workspace proof** is allowed when any debug surface is unavailable. It requires the isolated workspace's minimal `opencode.json`, plugin path to the current checkout, checkout SHA, adapter-side validation of `.opencode/plugins/researchflow.js`, static ResearchFlow skill inventory, all available debug evidence, and a real `opencode run` canary. It records `plugin_proof_strength = "workspace_config_static_inventory_canary"`.
+
+If neither branch establishes the source, inventory, and canary evidence, OpenCode preflight is `blocked`.
+
+### 7.5 OpenCode isolation profile
 
 OpenCode uses:
 
@@ -565,7 +600,7 @@ Each isolated case workspace contains a minimal `opencode.json` equivalent to:
 }
 ```
 
-Before scored execution, the adapter captures redacted `opencode debug config`, `opencode debug paths`, and `opencode debug skill` output. Resolved configuration must satisfy an allowlist:
+Before scored execution, the adapter captures every debug surface proved available. Strong proof captures redacted `opencode debug config`, `opencode debug paths`, and `opencode debug skill`; fallback proof captures available debug output plus workspace/static evidence. The resulting proof bundle must satisfy an allowlist:
 
 - plugin source resolves to the current ResearchFlow checkout;
 - ResearchFlow skills path is registered;
@@ -582,15 +617,15 @@ A canary response alone cannot prove plugin loading because an ordinary model co
 
 For each harness, preflight must establish all of:
 
-1. the capability-proved load branch validates the current checkout's plugin or marketplace metadata through a command actually supported by that CLI build;
-2. the adapter's best available source evidence points to the current checkout or its deterministic build artifact;
-3. the ResearchFlow inventory contains `using-researchflow` and all five primary phase skills, using runtime inventory where available and a recorded static checkout inventory otherwise;
+1. adapter-side schema validation of the current checkout's plugin/marketplace metadata and required skill files, plus optional CLI-native validation when capability probe proves it available;
+2. the selected capability-proved source branch points to the current checkout or its deterministic build artifact;
+3. the ResearchFlow inventory contains `using-researchflow` and all five primary phase skills, using runtime inventory where available and recorded static checkout inventory otherwise;
 4. a real non-interactive probe under the same isolation profile returns `RESEARCHFLOW_BOOTSTRAP_ACTIVE`;
 5. the probe uses the same verified OpenAI backing model, plugin source, settings isolation, and tool boundary as scored cases.
 
 For Claude Code, proof follows the selected direct-plugin-dir or local-marketplace branch. If no runtime resolved-source/inventory surface exists, the recorded proof strength is `best_available_source_plus_canary`, not equivalent to OpenCode runtime proof.
 
-For OpenCode, redacted `debug config`, `debug paths`, and `debug skill` outputs establish the resolved source and inventory before the real `opencode run` probe, permitting `resolved_runtime_source_inventory_canary` proof strength.
+For OpenCode, proof follows the strong runtime or fallback workspace branch selected by capability probe. Missing debug surfaces reduce proof strength but do not block a complete fallback bundle.
 
 ### 8.2 Canary prompt
 
@@ -654,7 +689,7 @@ Commit:
 - `cases.json`;
 - `scored-prompt.txt` and `model-identities.json`;
 - adapters, judge, summarizer, redactor, orchestration script, and synthetic fixtures;
-- redacted capability and preflight records;
+- redacted capability and preflight records, including both committed `<harness>-model-proof.json` artifacts;
 - redacted `environment.json`;
 - `invocation.json`, `final-response.txt`, `command.json`, and `verdict.json` for every attempted case;
 - `summary.json`;
@@ -723,7 +758,7 @@ A scanner hit fails packaging. The system must not silently commit a partially r
 
 ## 11. Summary schema and state semantics
 
-`summary.json` must be deterministically reconstructable from capability, preflight, environment, invocation, response, and verdict artifacts plus the committed model-identity allowlist.
+`summary.json` must be deterministically reconstructable solely from committed capability, preflight, per-harness model-proof, environment, invocation, response, verdict/unattempted-accounting artifacts, plus the committed model-identity allowlist. Local raw event streams are optional audit aids and must not be required for reconstruction.
 
 Verdicts form a mutually exclusive partition. Contamination is a separate overlay and must never be included in verdict totals.
 
@@ -793,12 +828,32 @@ Mechanical rules:
 
 A blocked harness may still produce a complete run record, but `acceptance_passed` and `release_candidate_eligible` remain false. Reruns must not modify the original run's state fields.
 
+Every original run contains exactly 14 case-accounting rows, even when no scored invocation occurs. An unattempted row has:
+
+```json
+{
+  "case_id": "R-DIRECT-LIT",
+  "status": "unattempted",
+  "reason_code": "model_alignment_blocked"
+}
+```
+
+Allowed `reason_code` values are:
+
+- `claude_preflight_blocked`
+- `opencode_preflight_blocked`
+- `model_alignment_blocked`
+- `global_hard_gate_blocked`
+- `runtime_harness_stopped`
+
+If both preflights pass but model alignment fails, all 14 rows use `model_alignment_blocked`. If one preflight blocks before the global same-model gate, that harness's seven rows use its harness-specific preflight code and the other seven use `global_hard_gate_blocked`. A runtime stop uses verdicts for completed cases and `runtime_harness_stopped` for the affected harness's remaining cases.
+
 `summary.md` must contain:
 
 - environment, verified OpenAI backing model, isolation, and plugin-source/proof-strength summary;
-- a 14-row accounting table when both preflights pass, or explicit unattempted rows when blocked;
+- exactly 14 case-accounting rows, using verdict rows for attempted cases and explicit reason-coded unattempted rows for every no-score case;
 - verdict partitions and separate contamination overlays;
-- model alignment outcome and any confound/block disclosure;
+- model alignment outcome, both committed model-proof links, and any confound/block disclosure;
 - evidence links and raw-artifact hashes;
 - deviations and manual notes;
 - packaging/redaction status;
@@ -842,7 +897,7 @@ The summary generator must fail on missing or duplicate case artifacts.
 No scored case may start until all hard gates for that harness pass:
 
 - capability probe completed;
-- one supported authentication-preserving isolation profile selected;
+- one supported authentication-compatible isolation profile selected and the same profile ID recorded in capability, preflight, and invocation artifacts;
 - joint plugin-load proof passed;
 - both harness model requests resolve through LiteLLM to the same verified OpenAI backing model;
 - seven-case manifest validated;
@@ -872,9 +927,9 @@ The synthetic matrix includes at least:
 | timeout | `harness_error` |
 | incomplete plugin-load proof | `harness_error` |
 | unverified or misaligned OpenAI backing model | preflight blocked; all cases `unattempted` |
-| tool call blocked with complete audit | diagnostic verdict retained; contaminated |
-| tool execution with audited bounded side effect | diagnostic verdict retained; contaminated |
-| tool side effect unaudited or unknown | `harness_error` |
+| tool call blocked with complete event/response audit | diagnostic verdict retained; contaminated |
+| any tool successfully executed | `harness_error` |
+| tool result incomplete or success unknown | `harness_error` |
 | contaminated environment | excluded from acceptance |
 | missing case artifact | summary build fails |
 | duplicate case artifact | summary build fails |
