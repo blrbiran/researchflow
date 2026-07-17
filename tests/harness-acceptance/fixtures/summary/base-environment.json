@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-07-17T120000Z",
+  "run_kind": "original",
+  "redaction_passed": true,
+  "raw_artifacts": {
+    "relative_id": "local-raw/2026-07-17T120000Z",
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "manual_review_status": "pending",
+    "reason_not_committed": "raw event streams remain local"
+  },
+  "manual_notes": [],
+  "deviations": []
+}

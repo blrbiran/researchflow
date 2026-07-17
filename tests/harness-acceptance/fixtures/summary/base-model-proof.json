@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "harness": "claude",
+  "proxy_kind": "litellm",
+  "endpoint_identity_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requested_route": "fable",
+  "upstream_provider": "openai",
+  "backing_model_id": "synthetic-model",
+  "resolved_model_identity": "openai/synthetic-model",
+  "proof_method": "litellm-response-metadata",
+  "proof_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "verified": true,
+  "redaction_passed": true
+}

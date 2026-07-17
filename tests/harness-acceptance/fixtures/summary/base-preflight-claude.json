@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "harness": "claude",
+  "status": "pass",
+  "plugin_proof_strength": "best_available_source_plus_canary",
+  "isolation_profile": "auth-preserving-direct-plugin-dir"
+}

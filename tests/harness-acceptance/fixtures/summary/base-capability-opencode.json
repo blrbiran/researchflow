@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "harness": "opencode",
+  "cli_version": "0.9.1",
+  "plugin_proof_strength": "resolved_runtime_source_inventory_canary",
+  "selected_isolation_profile": "workspace-config-runtime-proof"
+}
