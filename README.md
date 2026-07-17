@@ -106,12 +106,16 @@ V0 provides:
 - Workflow demo contract test: `./tests/demo/test-agent-memory-e2e.sh`
 
 
-## End-to-end demo
+## End-to-end demos
 
-A minimal artifact-chain demo lives under `docs/demos/agent-memory-e2e/`.
+ResearchFlow now includes two minimal artifact-chain demos:
 
-Run its check with:
+- `docs/demos/agent-memory-e2e/` — technical / system-paper flavored example
+- `docs/demos/benchmark-ambiguity-e2e/` — benchmark / evaluation-paper flavored example
+
+Run their checks with:
 
 ```bash
 ./tests/demo/test-agent-memory-e2e.sh
+./tests/demo/test-benchmark-ambiguity-e2e.sh
 ```

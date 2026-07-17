@@ -94,3 +94,11 @@ When editing a phase skill, keep its expected handoff artifact synchronized with
 ```
 
 Checks that the sample Literature Map -> Structure Brief -> Draft Packet -> Review Packet -> Submission Packet chain exists and that each artifact includes the required workflow-contract fields with non-empty section bodies.
+
+### Benchmark / evaluation demo
+
+```bash
+./tests/demo/test-benchmark-ambiguity-e2e.sh
+```
+
+Checks the same contract chain on a benchmark / evaluation-paper flavored example so the workflow is not validated only on the agent-memory topic.
