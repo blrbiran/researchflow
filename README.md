@@ -108,14 +108,16 @@ V0 provides:
 
 ## End-to-end demos
 
-ResearchFlow now includes two minimal artifact-chain demos:
+ResearchFlow now includes three minimal artifact-chain demos:
 
 - `docs/demos/agent-memory-e2e/` — technical / system-paper flavored example
 - `docs/demos/benchmark-ambiguity-e2e/` — benchmark / evaluation-paper flavored example
+- `docs/demos/llm-judge-survey-e2e/` — survey / synthesis-paper flavored example
 
 Run their checks with:
 
 ```bash
 ./tests/demo/test-agent-memory-e2e.sh
 ./tests/demo/test-benchmark-ambiguity-e2e.sh
+./tests/demo/test-llm-judge-survey-e2e.sh
 ```

@@ -102,3 +102,12 @@ Checks that the sample Literature Map -> Structure Brief -> Draft Packet -> Revi
 ```
 
 Checks the same contract chain on a benchmark / evaluation-paper flavored example so the workflow is not validated only on the agent-memory topic.
+
+
+### Survey / synthesis demo
+
+```bash
+./tests/demo/test-llm-judge-survey-e2e.sh
+```
+
+Checks the contract chain on a survey / synthesis-paper example whose contribution is a taxonomy and cross-study evidence synthesis rather than a new system or benchmark.
