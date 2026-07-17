@@ -25,6 +25,14 @@ Initial supported harnesses:
 
 ## Smoke tests
 
+### All tests
+
+```bash
+./tests/run-all.sh
+```
+
+Runs the OpenCode smoke test, the Claude metadata smoke test, and the workflow demo contract test in one entrypoint.
+
 ### OpenCode
 
 ```bash

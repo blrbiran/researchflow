@@ -100,8 +100,10 @@ V0 provides:
 
 ## Smoke tests
 
+- Run everything: `./tests/run-all.sh`
 - OpenCode bridge smoke test: `./tests/opencode/run-tests.sh`
 - Claude metadata smoke test: `./tests/claude-code/run-tests.sh`
+- Workflow demo contract test: `./tests/demo/test-agent-memory-e2e.sh`
 
 
 ## End-to-end demo
