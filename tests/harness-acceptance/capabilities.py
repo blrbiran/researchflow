@@ -524,10 +524,10 @@ def build_capability_record(harness: str, cli_version: str, probe: dict[str, Any
         if harness == "claude" and isinstance(environment, dict)
         else harness != "claude",
         "settings_isolation": selected_profile is not None,
-        "auth_preserving_full_isolation": bool(
-            isinstance(probe.get("probe_results"), dict)
-            and _truthy(probe["probe_results"].get("full_isolation_auth_compatible"))
-        ),
+        "auth_preserving_full_isolation": selected_profile in {
+            CLAUDE_FULL_DIRECT,
+            CLAUDE_FULL_MARKETPLACE,
+        },
         "selected_isolation_profile": selected_profile,
         "plugin_proof_strength": _plugin_proof_strength_for_probe(probe),
     }

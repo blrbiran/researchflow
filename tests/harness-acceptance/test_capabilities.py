@@ -106,6 +106,13 @@ class CapabilitiesTest(unittest.TestCase):
         self.assertIsNone(record["selected_load_branch"])
         self.assertIsNone(record["selected_isolation_profile"])
 
+    def test_build_capability_record_requires_selected_full_isolation_profile(self):
+        probe = clone_json(self.fixtures["claude_full"])
+        probe["probe_results"]["environment_validation"]["full_isolation_supported"] = False
+        record = self.capabilities.build_capability_record("claude", "2.1.212", probe)
+        self.assertEqual(record["selected_isolation_profile"], "auth-preserving-direct-plugin-dir")
+        self.assertFalse(record["auth_preserving_full_isolation"])
+
     def test_hash_endpoint_identity_normalizes_without_serializing_raw_url(self):
         first = self.capabilities.hash_endpoint_identity("HTTPS://Proxy.EXAMPLE.com/v1/")
         second = self.capabilities.hash_endpoint_identity("https://proxy.example.com/v1?api_key=secret")
