@@ -199,3 +199,32 @@ class RunTest(unittest.TestCase):
             case_dir.mkdir(parents=True, exist_ok=True)
             with self.assertRaisesRegex(ValueError, "existing case artifact"):
                 self.run_module.run_original(config, "2026-07-18T124500Z", "scored")
+
+    def test_main_parses_cli_arguments_and_invokes_run_original(self):
+        calls = {}
+        original = self.run_module.run_original
+
+        def fake_run_original(config, run_id, mode):
+            calls["config"] = config
+            calls["run_id"] = run_id
+            calls["mode"] = mode
+            return Path("/tmp/synthetic-run")
+
+        self.run_module.run_original = fake_run_original
+        self.addCleanup(setattr, self.run_module, "run_original", original)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "run-config.json"
+            config_path.write_text(json.dumps(self.make_config(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            exit_code = self.run_module.main([
+                "--mode",
+                "preflight-only",
+                "--config",
+                str(config_path),
+                "--run-id",
+                "2026-07-18T130000Z",
+            ])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(calls["mode"], "preflight-only")
+        self.assertEqual(calls["run_id"], "2026-07-18T130000Z")
+        self.assertEqual(calls["config"]["timeout_seconds"], 120)

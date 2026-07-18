@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -205,3 +206,31 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
                 _write_verdict(case, case_dir)
         _write_summary_outputs(run_dir, cases)
         return run_dir
+
+
+def load_run_config(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("config must be an object")
+    for key in ("claude", "opencode", "timeout_seconds"):
+        if key not in value:
+            raise ValueError(f"missing config key: {key}")
+    return value
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", required=True, choices=("preflight-only", "scored"))
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--run-id", required=True)
+    args = parser.parse_args(argv)
+    config = load_run_config(Path(args.config))
+    config.setdefault("repo_root", str(ROOT))
+    config.setdefault("repo_commit_sha", _repo_commit_sha())
+    config.setdefault("endpoint_identity", "https://redacted.invalid/v1")
+    run_original(config, args.run_id, args.mode)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
