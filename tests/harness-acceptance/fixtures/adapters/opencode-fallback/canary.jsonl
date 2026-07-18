@@ -1,0 +1,2 @@
+{"event":"model","backing_model_id":"synthetic-model","resolved_model_identity":"openai/synthetic-model","proof_source":"litellm-response-metadata"}
+{"event":"response","text":"RESEARCHFLOW_BOOTSTRAP_ACTIVE\nOpenCode fallback canary\n"}

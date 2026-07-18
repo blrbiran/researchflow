@@ -1,0 +1,16 @@
+{
+  "harness": "claude",
+  "probe_results": {
+    "direct_plugin_dir": {
+      "flag_supported": false,
+      "canary_passed": false
+    },
+    "marketplace": {
+      "registration_supported": false,
+      "install_supported": false,
+      "resolved_checkout_match": false
+    },
+    "full_isolation_auth_compatible": false,
+    "auth_preserving_supported": false
+  }
+}

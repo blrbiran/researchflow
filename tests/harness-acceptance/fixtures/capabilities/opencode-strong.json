@@ -1,0 +1,14 @@
+{
+  "harness": "opencode",
+  "workspace_plugin_matches_checkout": true,
+  "probe_results": {
+    "debug": {
+      "config": true,
+      "paths": true,
+      "skill": true
+    },
+    "run": {
+      "canary_passed": true
+    }
+  }
+}

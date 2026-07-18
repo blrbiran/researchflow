@@ -1,0 +1,5 @@
+usage: claude [options]
+  --plugin-dir PATH
+  --no-session-persistence
+  --tools TEXT
+  --output-format json

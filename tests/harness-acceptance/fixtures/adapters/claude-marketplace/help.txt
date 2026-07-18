@@ -1,0 +1,4 @@
+usage: claude [options]
+  --no-session-persistence
+  --tools TEXT
+  --output-format json

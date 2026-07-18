@@ -1,0 +1,3 @@
+{"event":"model","backing_model_id":"synthetic-model","resolved_model_identity":"openai/synthetic-model","proof_source":"litellm-response-metadata"}
+{"event":"tool","tool":"web_fetch","status":"blocked"}
+{"event":"response","text":"ResearchFlow phase: literature-discovery\n"}
