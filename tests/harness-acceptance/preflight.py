@@ -28,13 +28,29 @@ def _inspect_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> d
     return lib.inspect_model_proof(value, identities)
 
 
+def _resolve_consistent_gate_value(capability_value: Any, preflight_value: Any) -> tuple[str | None, bool]:
+    capability_text = capability_value if isinstance(capability_value, str) and capability_value else None
+    preflight_text = preflight_value if isinstance(preflight_value, str) and preflight_value else None
+    if capability_text is not None and preflight_text is not None and capability_text != preflight_text:
+        return None, False
+    return preflight_text or capability_text, True
+
+
 def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], model_proof: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:
     inspected = _inspect_model_proof(model_proof, identities)
-    isolation_profile = preflight.get("isolation_profile") or capability.get("selected_isolation_profile")
-    plugin_proof_strength = preflight.get("plugin_proof_strength") or capability.get("plugin_proof_strength")
-    plugin_source_id = preflight.get("plugin_source_id")
+    isolation_profile, isolation_profile_consistent = _resolve_consistent_gate_value(
+        capability.get("selected_isolation_profile"),
+        preflight.get("isolation_profile"),
+    )
+    plugin_proof_strength, plugin_proof_strength_consistent = _resolve_consistent_gate_value(
+        capability.get("plugin_proof_strength"),
+        preflight.get("plugin_proof_strength"),
+    )
+    plugin_source_id = preflight.get("plugin_source_id") if isinstance(preflight.get("plugin_source_id"), str) and preflight.get("plugin_source_id") else None
     passed = (
         preflight.get("status") == "pass"
+        and isolation_profile_consistent
+        and plugin_proof_strength_consistent
         and isinstance(isolation_profile, str)
         and bool(isolation_profile)
         and isinstance(plugin_proof_strength, str)

@@ -87,6 +87,28 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertFalse(result["proof_valid"])
 
+    def test_evaluate_preflight_blocks_on_capability_preflight_profile_mismatch(self):
+        capability = copy.deepcopy(self.capability["claude"])
+        preflight = copy.deepcopy(self.base_preflight["claude"])
+        model_proof = copy.deepcopy(self.base_model_proof)
+        preflight["isolation_profile"] = "workspace-config-runtime-proof"
+        result = self.preflight.evaluate_preflight(capability, preflight, model_proof, self.identities)
+        self.assertEqual(result["status"], "blocked")
+        self.assertIsNone(result["canonical_identity"])
+        self.assertIsNone(result["isolation_profile"])
+        self.assertEqual(result["plugin_proof_strength"], "best_available_source_plus_canary")
+
+    def test_evaluate_preflight_blocks_on_capability_preflight_plugin_proof_strength_mismatch(self):
+        capability = copy.deepcopy(self.capability["claude"])
+        preflight = copy.deepcopy(self.base_preflight["claude"])
+        model_proof = copy.deepcopy(self.base_model_proof)
+        preflight["plugin_proof_strength"] = "workspace_config_static_inventory_canary"
+        result = self.preflight.evaluate_preflight(capability, preflight, model_proof, self.identities)
+        self.assertEqual(result["status"], "blocked")
+        self.assertIsNone(result["canonical_identity"])
+        self.assertIsNone(result["plugin_proof_strength"])
+        self.assertEqual(result["isolation_profile"], "auth-preserving-direct-plugin-dir")
+
     def test_evaluate_model_alignment_distinguishes_allowlist_gap_from_true_mismatch(self):
         claude = {
             "status": "pass",

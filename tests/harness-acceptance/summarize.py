@@ -128,14 +128,14 @@ def _read_harness_state(run_dir: Path, harness: str, identities: dict[str, Any])
         raise ValueError(f"preflight.{harness}.status must be one of {PREFLIGHT_STATUSES}")
     evaluated_preflight = preflight_contract.evaluate_preflight(capability, preflight, model_proof, identities)
     plugin_proof_strength = evaluated_preflight.get("plugin_proof_strength")
-    isolation_profile = evaluated_preflight.get("isolation_profile")
-    preflight_plugin_source_id = evaluated_preflight.get("plugin_source_id")
     if not isinstance(plugin_proof_strength, str) or not plugin_proof_strength:
-        raise ValueError(f"{harness} plugin_proof_strength missing")
+        plugin_proof_strength = None
+    isolation_profile = evaluated_preflight.get("isolation_profile")
     if not isinstance(isolation_profile, str) or not isolation_profile:
-        raise ValueError(f"{harness} isolation_profile missing")
-    if preflight_plugin_source_id is not None:
-        preflight_plugin_source_id = _require_string(preflight_plugin_source_id, f"preflight.{harness}.plugin_source_id")
+        isolation_profile = None
+    preflight_plugin_source_id = evaluated_preflight.get("plugin_source_id")
+    if not isinstance(preflight_plugin_source_id, str) or not preflight_plugin_source_id:
+        preflight_plugin_source_id = None
     gate_preflight_status = _derive_gate_preflight_status(raw_preflight_status, evaluated_preflight)
     return {
         "capability": capability,
@@ -244,7 +244,12 @@ def _validate_prefix(case_order: list[str], attempted: dict[str, dict[str, Any]]
     return prefix_len
 
 
-def _resolve_plugin_source_id(harness: str, attempted: dict[str, dict[str, Any]], state: dict[str, Any]) -> str:
+def _resolve_plugin_source_id(
+    harness: str,
+    attempted: dict[str, dict[str, Any]],
+    state: dict[str, Any],
+    allow_missing: bool = False,
+) -> Optional[str]:
     preflight_source_id = state.get("preflight_plugin_source_id")
     attempted_source_ids = {row["plugin_source_id"] for row in attempted.values()}
     if len(attempted_source_ids) > 1:
@@ -257,7 +262,7 @@ def _resolve_plugin_source_id(harness: str, attempted: dict[str, dict[str, Any]]
                 f"{preflight_source_id} != {attempted_source_id}"
             )
         return attempted_source_id
-    if preflight_source_id is None:
+    if preflight_source_id is None and not allow_missing:
         raise ValueError(f"{harness} plugin_source_id missing from preflight proof")
     return preflight_source_id
 
@@ -350,7 +355,12 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
                 contaminated_case_ids.append(row["case_id"])
         if sum(verdict_counts.values()) != CASES_PER_HARNESS:
             verdict_counts_valid = False
-        plugin_source_id = _resolve_plugin_source_id(harness, attempted[harness], states[harness])
+        plugin_source_id = _resolve_plugin_source_id(
+            harness,
+            attempted[harness],
+            states[harness],
+            allow_missing=not attempted[harness] and states[harness]["preflight_status"] == "blocked",
+        )
         harness_summaries[harness] = {
             "preflight": states[harness]["preflight_status"],
             "plugin_proof_strength": states[harness]["plugin_proof_strength"],
