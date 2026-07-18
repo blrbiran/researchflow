@@ -168,9 +168,51 @@ class RunTest(unittest.TestCase):
             config = self.make_config()
             config["results_root"] = str(Path(temp_dir) / "results")
             run_dir = self.run_module.run_original(config, "2026-07-18T121500Z", "preflight-only")
-            self.assertTrue((run_dir / "preflight" / "baseline.json").exists())
+            baseline = json.loads((run_dir / "preflight" / "baseline.json").read_text(encoding="utf-8"))
+            self.assertEqual(baseline["repo_commit_sha"], config["repo_commit_sha"])
+            self.assertEqual(baseline["cases_sha256"], self.lib.sha256_path(HARNESS_DIR / "cases.json"))
+            self.assertEqual(baseline["scored_prompt_sha256"], self.lib.sha256_path(HARNESS_DIR / "scored-prompt.txt"))
+            self.assertEqual(baseline["plugin_source_id"], config["plugin_source_id"])
+            self.assertEqual(baseline["residual_categories"], config["residual_categories"])
+            for harness in ("claude", "opencode"):
+                self.assertEqual(
+                    baseline["harnesses"][harness]["harness_model_value"],
+                    config[harness]["harness_model_value"],
+                )
+                self.assertEqual(
+                    baseline["harnesses"][harness]["effort_or_variant"],
+                    config[harness]["effort_or_variant"],
+                )
+                self.assertEqual(
+                    baseline["harnesses"][harness]["plugin_source_id"],
+                    config["plugin_source_id"],
+                )
+                self.assertEqual(
+                    baseline["harnesses"][harness]["canonical_identity"],
+                    "openai/synthetic-model",
+                )
+                self.assertRegex(baseline["harnesses"][harness]["proof_sha256"], r"^[0-9a-f]{64}$")
+                self.assertRegex(baseline["harnesses"][harness]["endpoint_identity_sha256"], r"^[0-9a-f]{64}$")
+                self.assertTrue(baseline["harnesses"][harness]["selected_isolation_profile"])
+                self.assertTrue(baseline["harnesses"][harness]["plugin_proof_strength"])
+            self.assertRegex(baseline["fingerprint_sha256"], r"^[0-9a-f]{64}$")
             self.assertFalse((run_dir / "summary.json").exists())
             self.assertFalse((run_dir / "summary.md").exists())
+
+    def test_hydrate_run_config_accepts_minimal_checked_in_config_shape(self):
+        minimal = {
+            "claude": {"harness_model_value": "fable", "effort_or_variant": "high"},
+            "opencode": {"harness_model_value": "openai/proxy-route", "effort_or_variant": "high"},
+            "timeout_seconds": 120,
+        }
+        hydrated = self.run_module.hydrate_run_config(minimal, "2026-07-18T130000Z")
+        self.assertEqual(hydrated["repo_root"], str(ROOT))
+        self.assertEqual(hydrated["plugin_source_id"], "researchflow-checkout")
+        self.assertEqual(hydrated["residual_categories"], ["auth", "admin-policy"])
+        self.assertEqual(hydrated["claude"]["cli_bin"], "claude")
+        self.assertEqual(hydrated["opencode"]["cli_bin"], "opencode")
+        self.assertIn("2026-07-18T130000Z", hydrated["raw_dir"])
+        self.assertEqual(hydrated["endpoint_identity"], "https://redacted.invalid/v1")
 
     def test_scored_requires_aligned_baseline_and_runs_cases_in_fixed_order(self):
         case_calls: list[tuple[str, str]] = []
@@ -215,7 +257,18 @@ class RunTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "run-config.json"
-            config_path.write_text(json.dumps(self.make_config(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "claude": {"harness_model_value": "fable", "effort_or_variant": "high"},
+                        "opencode": {"harness_model_value": "openai/proxy-route", "effort_or_variant": "high"},
+                        "timeout_seconds": 120,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                ) + "\n",
+                encoding="utf-8",
+            )
             exit_code = self.run_module.main([
                 "--mode",
                 "preflight-only",
@@ -228,3 +281,7 @@ class RunTest(unittest.TestCase):
         self.assertEqual(calls["mode"], "preflight-only")
         self.assertEqual(calls["run_id"], "2026-07-18T130000Z")
         self.assertEqual(calls["config"]["timeout_seconds"], 120)
+        self.assertEqual(calls["config"]["plugin_source_id"], "researchflow-checkout")
+        self.assertEqual(calls["config"]["residual_categories"], ["auth", "admin-policy"])
+        self.assertEqual(calls["config"]["claude"]["cli_bin"], "claude")
+        self.assertEqual(calls["config"]["opencode"]["cli_bin"], "opencode")

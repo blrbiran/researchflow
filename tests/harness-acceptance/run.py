@@ -22,6 +22,10 @@ import summarize  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 HARNESS_DIR = ROOT / "tests" / "harness-acceptance"
 HARNESSES = ("claude", "opencode")
+DEFAULT_PLUGIN_SOURCE_ID = "researchflow-checkout"
+DEFAULT_RESIDUAL_CATEGORIES = ["auth", "admin-policy"]
+DEFAULT_ENDPOINT_IDENTITY = "https://redacted.invalid/v1"
+DEFAULT_CLI_BINS = {"claude": "claude", "opencode": "opencode"}
 
 
 def _repo_commit_sha() -> str:
@@ -128,6 +132,22 @@ def _write_verdict(case: dict[str, Any], case_dir: Path) -> None:
     lib.write_json(case_dir / "verdict.json", verdict)
 
 
+def hydrate_run_config(config: dict[str, Any], run_id: str | None = None) -> dict[str, Any]:
+    hydrated = json.loads(json.dumps(config))
+    hydrated.setdefault("repo_root", str(ROOT))
+    hydrated.setdefault("repo_commit_sha", _repo_commit_sha())
+    hydrated.setdefault("endpoint_identity", DEFAULT_ENDPOINT_IDENTITY)
+    hydrated.setdefault("plugin_source_id", DEFAULT_PLUGIN_SOURCE_ID)
+    hydrated.setdefault("residual_categories", list(DEFAULT_RESIDUAL_CATEGORIES))
+    for harness, cli_bin in DEFAULT_CLI_BINS.items():
+        harness_config = hydrated.setdefault(harness, {})
+        harness_config.setdefault("cli_bin", cli_bin)
+    if run_id is not None:
+        hydrated["run_id"] = run_id
+        hydrated.setdefault("raw_dir", str(ROOT / ".harness-acceptance-local" / run_id / "raw"))
+    return hydrated
+
+
 def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
     if mode not in {"preflight-only", "scored"}:
         raise ValueError(f"unsupported mode: {mode}")
@@ -149,11 +169,7 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
 
     with tempfile.TemporaryDirectory() as temp_dir:
         config_path = Path(temp_dir) / "run-config.json"
-        config_with_run = dict(config)
-        config_with_run.setdefault("repo_root", str(ROOT))
-        config_with_run.setdefault("repo_commit_sha", _repo_commit_sha())
-        config_with_run.setdefault("endpoint_identity", "https://redacted.invalid/v1")
-        config_with_run["run_id"] = run_id
+        config_with_run = hydrate_run_config(config, run_id)
         config_path.write_text(json.dumps(config_with_run, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
         if mode == "preflight-only":
@@ -224,10 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", required=True)
     parser.add_argument("--run-id", required=True)
     args = parser.parse_args(argv)
-    config = load_run_config(Path(args.config))
-    config.setdefault("repo_root", str(ROOT))
-    config.setdefault("repo_commit_sha", _repo_commit_sha())
-    config.setdefault("endpoint_identity", "https://redacted.invalid/v1")
+    config = hydrate_run_config(load_run_config(Path(args.config)), args.run_id)
     run_original(config, args.run_id, args.mode)
     return 0
 

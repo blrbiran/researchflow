@@ -63,50 +63,7 @@ def _require_sha256(value: Any, label: str) -> str:
 
 
 def _inspect_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:
-    try:
-        if not isinstance(value, dict):
-            raise ValueError("model proof must be an object")
-        if value.get("schema_version") != 1:
-            raise ValueError("schema_version must equal 1")
-        if value.get("proxy_kind") != "litellm":
-            raise ValueError("proxy_kind must equal litellm")
-        if value.get("upstream_provider") != identities.get("allowed_provider"):
-            raise ValueError("provider mismatch")
-        _require_sha256(value.get("endpoint_identity_sha256"), "endpoint_identity_sha256")
-        _require_string(value.get("requested_route"), "requested_route")
-        backing_model_id = _require_string(value.get("backing_model_id"), "backing_model_id")
-        resolved_model_identity = _require_string(value.get("resolved_model_identity"), "resolved_model_identity")
-        if not resolved_model_identity.startswith("openai/"):
-            raise ValueError("resolved_model_identity must start with openai/")
-        _require_string(value.get("proof_method"), "proof_method")
-        _require_sha256(value.get("proof_sha256"), "proof_sha256")
-        if not _require_bool(value.get("verified"), "verified"):
-            raise ValueError("verified must be true")
-        if not _require_bool(value.get("redaction_passed"), "redaction_passed"):
-            raise ValueError("redaction_passed must be true")
-    except (TypeError, ValueError):
-        return {
-            "proof_valid": False,
-            "canonical_identity": None,
-            "proof_identity": value.get("resolved_model_identity") if isinstance(value, dict) else None,
-            "backing_model_id": value.get("backing_model_id") if isinstance(value, dict) else None,
-            "allowlist_missing": False,
-        }
-
-    canonical_models = identities.get("canonical_models")
-    if not isinstance(canonical_models, dict):
-        canonical_models = {}
-    canonical_identity = canonical_models.get(backing_model_id)
-    allowlist_missing = not isinstance(canonical_identity, str)
-    if canonical_identity != resolved_model_identity:
-        canonical_identity = None
-    return {
-        "proof_valid": True,
-        "canonical_identity": canonical_identity,
-        "proof_identity": resolved_model_identity,
-        "backing_model_id": backing_model_id,
-        "allowlist_missing": allowlist_missing,
-    }
+    return lib.inspect_model_proof(value, identities)
 
 
 def validate_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> Optional[str]:

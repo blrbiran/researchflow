@@ -25,41 +25,7 @@ def load_identities(harness_dir: Path) -> dict[str, Any]:
 
 
 def _inspect_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        return {
-            "proof_valid": False,
-            "canonical_identity": None,
-            "proof_identity": None,
-            "backing_model_id": None,
-            "allowlist_missing": False,
-        }
-    canonical_models = identities.get("canonical_models")
-    if not isinstance(canonical_models, dict):
-        canonical_models = {}
-    resolved = value.get("resolved_model_identity")
-    backing_model_id = value.get("backing_model_id")
-    proof_valid = (
-        value.get("schema_version") == 1
-        and value.get("proxy_kind") == "litellm"
-        and value.get("upstream_provider") == identities.get("allowed_provider")
-        and value.get("verified") is True
-        and value.get("redaction_passed") is True
-        and isinstance(resolved, str)
-        and resolved.startswith("openai/")
-        and isinstance(backing_model_id, str)
-        and bool(backing_model_id)
-    )
-    canonical_identity = canonical_models.get(backing_model_id) if proof_valid else None
-    allowlist_missing = proof_valid and not isinstance(canonical_identity, str)
-    if canonical_identity != resolved:
-        canonical_identity = None
-    return {
-        "proof_valid": proof_valid,
-        "canonical_identity": canonical_identity,
-        "proof_identity": resolved if isinstance(resolved, str) else None,
-        "backing_model_id": backing_model_id if isinstance(backing_model_id, str) else None,
-        "allowlist_missing": allowlist_missing,
-    }
+    return lib.inspect_model_proof(value, identities)
 
 
 def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], model_proof: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:

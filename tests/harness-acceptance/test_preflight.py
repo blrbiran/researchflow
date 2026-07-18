@@ -78,6 +78,15 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
         self.assertFalse(result["allowlist_missing"])
 
+    def test_evaluate_preflight_rejects_model_proof_missing_summary_required_fields(self):
+        capability = copy.deepcopy(self.capability["claude"])
+        preflight = copy.deepcopy(self.base_preflight["claude"])
+        model_proof = copy.deepcopy(self.base_model_proof)
+        model_proof.pop("proof_sha256")
+        result = self.preflight.evaluate_preflight(capability, preflight, model_proof, self.identities)
+        self.assertEqual(result["status"], "blocked")
+        self.assertFalse(result["proof_valid"])
+
     def test_evaluate_model_alignment_distinguishes_allowlist_gap_from_true_mismatch(self):
         claude = {
             "status": "pass",
