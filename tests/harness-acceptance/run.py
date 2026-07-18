@@ -72,6 +72,7 @@ def build_baseline_record(
         "residual_categories": list(config["residual_categories"]),
         "harnesses": {
             harness: {
+                "cli_bin": config[harness]["cli_bin"],
                 "harness_model_value": config[harness]["harness_model_value"],
                 "effort_or_variant": config[harness]["effort_or_variant"],
                 "plugin_source_id": evaluations[harness]["plugin_source_id"],
@@ -130,6 +131,95 @@ def _write_verdict(case: dict[str, Any], case_dir: Path) -> None:
     response = (case_dir / "final-response.txt").read_text(encoding="utf-8")
     verdict = judge.judge(case, invocation, response)
     lib.write_json(case_dir / "verdict.json", verdict)
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _write_runtime_harness_error(
+    case: dict[str, Any],
+    case_dir: Path,
+    harness: str,
+    config: dict[str, Any],
+    capability: dict[str, Any],
+) -> None:
+    case_dir.mkdir(parents=True, exist_ok=True)
+    response_path = case_dir / "final-response.txt"
+    if response_path.exists():
+        response_text = response_path.read_text(encoding="utf-8")
+    else:
+        response_text = ""
+        response_path.write_text(response_text, encoding="utf-8")
+    response_sha256 = _sha256_text(response_text)
+
+    invocation_path = case_dir / "invocation.json"
+    if invocation_path.exists():
+        invocation = lib.read_json(invocation_path)
+    else:
+        empty_sha = _sha256_text("")
+        invocation = {
+            "schema_version": 1,
+            "run_id": config["run_id"],
+            "case_id": case["case_id"],
+            "harness": harness,
+            "cli_version": capability.get("cli_version", "unknown"),
+            "model_request": {
+                "harness_value": config[harness]["harness_model_value"],
+                "proxy_kind": "litellm",
+                "endpoint_identity_sha256": _sha256_text(str(config["endpoint_identity"])),
+                "requested_route": config[harness]["harness_model_value"],
+            },
+            "model_resolution": {
+                "upstream_provider": "openai",
+                "backing_model_id": "unknown",
+                "proof_source": "runtime-stop",
+                "proof_sha256": empty_sha,
+            },
+            "resolved_model_identity": None,
+            "model_identity_verified": False,
+            "effort_or_variant": config[harness]["effort_or_variant"],
+            "timeout_seconds": int(config["timeout_seconds"]),
+            "started_at_utc": config["run_id"],
+            "finished_at_utc": config["run_id"],
+            "exit_code": 1,
+            "timed_out": False,
+            "repo_commit_sha": config["repo_commit_sha"],
+            "plugin_source_id": config["plugin_source_id"],
+            "plugin_proof_passed": bool(capability.get("selected_isolation_profile")),
+            "plugin_proof_strength": capability.get("plugin_proof_strength") or "best_available_source_plus_canary",
+            "isolation_profile": capability.get("selected_isolation_profile") or "runtime-stop-unknown",
+            "environment_contaminated": False,
+            "residual_categories": list(config["residual_categories"]),
+            "tool_execution": {
+                "detected": False,
+                "attempted_tools": [],
+                "side_effect_status": "none",
+                "audit_complete": True,
+            },
+            "final_response_path": "final-response.txt",
+            "final_response_sha256": response_sha256,
+            "raw_artifact_hashes": {"events": empty_sha, "stderr": empty_sha},
+        }
+        lib.write_json(invocation_path, invocation)
+
+    verdict_path = case_dir / "verdict.json"
+    if not verdict_path.exists():
+        verdict = {
+            "case_id": case["case_id"],
+            "expected_phase": case["expected_phase"],
+            "verdict": "harness_error",
+            "observed_phase": None,
+            "marker_count": 0,
+            "response_sha256": response_sha256,
+            "line_1_evidence": None,
+            "matched_evidence": None,
+            "forbidden_pattern_matches": [],
+            "environment_contaminated": False,
+            "contamination": {"contaminated": False, "reasons": []},
+            "manual_note": None,
+        }
+        lib.write_json(verdict_path, verdict)
 
 
 def hydrate_run_config(config: dict[str, Any], run_id: str | None = None) -> dict[str, Any]:
@@ -216,10 +306,15 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
             harness_dir = run_dir / harness
             if harness_dir.exists() and any(path.is_dir() for path in harness_dir.iterdir()):
                 raise ValueError("existing case artifact prevents scored continuation")
+            capability = lib.read_json(capabilities_dir / f"{harness}.json")
             for case in cases:
                 case_dir = harness_dir / case["case_id"]
-                _run_adapter(harness, "case", config_path, case_dir, case["case_id"])
-                _write_verdict(case, case_dir)
+                try:
+                    _run_adapter(harness, "case", config_path, case_dir, case["case_id"])
+                    _write_verdict(case, case_dir)
+                except Exception:
+                    _write_runtime_harness_error(case, case_dir, harness, config_with_run, capability)
+                    break
         _write_summary_outputs(run_dir, cases)
         return run_dir
 

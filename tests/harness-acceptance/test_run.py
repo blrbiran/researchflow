@@ -176,6 +176,10 @@ class RunTest(unittest.TestCase):
             self.assertEqual(baseline["residual_categories"], config["residual_categories"])
             for harness in ("claude", "opencode"):
                 self.assertEqual(
+                    baseline["harnesses"][harness]["cli_bin"],
+                    config[harness]["cli_bin"],
+                )
+                self.assertEqual(
                     baseline["harnesses"][harness]["harness_model_value"],
                     config[harness]["harness_model_value"],
                 )
@@ -237,6 +241,10 @@ class RunTest(unittest.TestCase):
             changed["timeout_seconds"] = 300
             with self.assertRaisesRegex(ValueError, "baseline"):
                 self.run_module.run_original(changed, "2026-07-18T124500Z", "scored")
+            changed_bin = copy.deepcopy(config)
+            changed_bin["claude"]["cli_bin"] = "/bin/false"
+            with self.assertRaisesRegex(ValueError, "baseline"):
+                self.run_module.run_original(changed_bin, "2026-07-18T124500Z", "scored")
             case_dir = run_dir / "claude" / self.case_ids[0]
             case_dir.mkdir(parents=True, exist_ok=True)
             with self.assertRaisesRegex(ValueError, "existing case artifact"):
@@ -260,6 +268,51 @@ class RunTest(unittest.TestCase):
             self.run_module.run_original(config, "2026-07-18T130500Z", "scored")
             with self.assertRaisesRegex(ValueError, "scored phase already completed"):
                 self.run_module.run_original(config, "2026-07-18T130500Z", "scored")
+
+    def test_scored_fail_closes_runtime_stop_and_still_writes_summary(self):
+        case_calls: list[tuple[str, str]] = []
+        original = self.run_module._run_adapter
+
+        def fake_run_adapter(harness: str, mode: str, config_path: Path, output_dir: Path, case_id: str | None = None):
+            output_dir.mkdir(parents=True, exist_ok=True)
+            if mode == "capability":
+                write_json(output_dir / f"{harness}.json", copy.deepcopy(self.base_capability[harness]))
+                return
+            if mode == "preflight":
+                preflight = copy.deepcopy(self.base_preflight[harness])
+                proof = copy.deepcopy(self.base_model_proof)
+                proof["harness"] = harness
+                proof["requested_route"] = "fable" if harness == "claude" else "openai/synthetic-model"
+                write_json(output_dir / f"{harness}.json", preflight)
+                write_json(output_dir / f"{harness}-model-proof.json", proof)
+                return
+            if mode == "case":
+                assert case_id is not None
+                case_calls.append((harness, case_id))
+                if harness == "claude" and case_id == self.case_ids[1]:
+                    raise RuntimeError("synthetic adapter stop")
+                observed_phase = next(case["expected_phase"] for case in self.lib.load_cases(ROOT) if case["case_id"] == case_id)
+                self.write_case_artifacts(output_dir, harness, case_id, observed_phase)
+                return
+            raise AssertionError(f"unexpected mode: {mode}")
+
+        self.run_module._run_adapter = fake_run_adapter
+        self.addCleanup(setattr, self.run_module, "_run_adapter", original)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(Path(temp_dir) / "results")
+            run_dir = self.run_module.run_original(config, "2026-07-18T131500Z", "preflight-only")
+            self.run_module.run_original(config, "2026-07-18T131500Z", "scored")
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            claude_rows = [row for row in summary["accounting_rows"] if row["harness"] == "claude"]
+            self.assertEqual(claude_rows[0]["status"], "pass")
+            self.assertEqual(claude_rows[1]["status"], "harness_error")
+            self.assertTrue(all(row["status"] == "unattempted" for row in claude_rows[2:]))
+            self.assertEqual({row["reason_code"] for row in claude_rows[2:]}, {"runtime_harness_stopped"})
+            self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["harness_error"], 1)
+            self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["unattempted"], 5)
+            self.assertIn(("opencode", self.case_ids[0]), case_calls)
 
     def test_main_parses_cli_arguments_and_invokes_run_original(self):
         calls = {}
