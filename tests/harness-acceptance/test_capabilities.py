@@ -96,6 +96,16 @@ class CapabilitiesTest(unittest.TestCase):
         self.assertTrue(record["optional_cli_validation"])
         self.assertEqual(record["selected_isolation_profile"], "auth-preserving-direct-plugin-dir")
 
+    def test_build_capability_record_derives_boolean_fields_from_probe_evidence(self):
+        probe = clone_json(self.fixtures["claude_direct"])
+        probe["probe_results"]["environment_validation"]["structured_output_supported"] = False
+        probe["probe_results"]["environment_validation"]["session_persistence_disable_supported"] = False
+        record = self.capabilities.build_capability_record("claude", "2.1.212", probe)
+        self.assertFalse(record["structured_output"])
+        self.assertFalse(record["session_persistence_disable"])
+        self.assertIsNone(record["selected_load_branch"])
+        self.assertIsNone(record["selected_isolation_profile"])
+
     def test_hash_endpoint_identity_normalizes_without_serializing_raw_url(self):
         first = self.capabilities.hash_endpoint_identity("HTTPS://Proxy.EXAMPLE.com/v1/")
         second = self.capabilities.hash_endpoint_identity("https://proxy.example.com/v1?api_key=secret")
@@ -204,6 +214,88 @@ class CapabilitiesTest(unittest.TestCase):
             self.assertEqual(cli_version, "unknown")
             self.assertIsNone(record["selected_proof_branch"])
             self.assertIsNone(record["selected_isolation_profile"])
+
+    def test_build_invocation_record_fail_closes_on_unrecognized_event_shapes(self):
+        config = {
+            "run_id": "2026-07-17T120000Z",
+            "repo_commit_sha": "c" * 40,
+            "timeout_seconds": 120,
+            "endpoint_identity": "https://proxy.example.com/v1?token=secret",
+            "claude": {
+                "harness_model_value": "fable",
+                "effort_or_variant": "high",
+            },
+        }
+        capability = self.capabilities.build_capability_record("claude", "2.1.212", self.fixtures["claude_direct"])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            events_path = temp_root / "events.jsonl"
+            stderr_path = temp_root / "stderr.txt"
+            events_path.write_text(json.dumps({"type": "unknown", "payload": "x"}) + "\n", encoding="utf-8")
+            stderr_path.write_text("", encoding="utf-8")
+            invocation, command, final_response = self.capabilities.build_invocation_record(
+                "claude",
+                config,
+                capability,
+                "R-DIRECT-LIT",
+                "2.1.212",
+                events_path,
+                stderr_path,
+                0,
+            )
+        self.assertEqual(final_response, "")
+        self.assertFalse(invocation["model_identity_verified"])
+        self.assertEqual(invocation["tool_execution"]["side_effect_status"], "none")
+        self.assertIsNone(command["resolved_model_identity"])
+
+    def test_build_invocation_record_preserves_fixture_backed_native_event_shape(self):
+        config = {
+            "run_id": "2026-07-17T120000Z",
+            "repo_commit_sha": "c" * 40,
+            "timeout_seconds": 120,
+            "endpoint_identity": "https://proxy.example.com/v1?token=secret",
+            "claude": {
+                "harness_model_value": "fable",
+                "effort_or_variant": "high",
+            },
+        }
+        capability = self.capabilities.build_capability_record("claude", "2.1.212", self.fixtures["claude_direct"])
+        events_path = HARNESS_DIR / "fixtures" / "adapters" / "claude-direct" / "cases" / "R-DIRECT-LIT.jsonl"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stderr_path = Path(temp_dir) / "stderr.txt"
+            stderr_path.write_text("", encoding="utf-8")
+            invocation, command, final_response = self.capabilities.build_invocation_record(
+                "claude",
+                config,
+                capability,
+                "R-DIRECT-LIT",
+                "2.1.212",
+                events_path,
+                stderr_path,
+                0,
+            )
+        self.assertEqual(final_response, "ResearchFlow phase: literature-discovery\n")
+        self.assertEqual(invocation["resolved_model_identity"], "openai/synthetic-model")
+        self.assertTrue(invocation["model_identity_verified"])
+        self.assertEqual(
+            invocation["tool_execution"],
+            {
+                "detected": False,
+                "attempted_tools": [],
+                "side_effect_status": "none",
+                "audit_complete": True,
+            },
+        )
+        self.assertEqual(invocation["model_resolution"]["backing_model_id"], "synthetic-model")
+        self.assertEqual(invocation["model_resolution"]["proof_source"], "litellm-response-metadata")
+        self.assertEqual(invocation["final_response_sha256"], self.capabilities._sha256_text(final_response))
+        self.assertEqual(invocation["raw_artifact_hashes"]["events"], self.capabilities.lib.sha256_path(events_path))
+        self.assertEqual(command["resolved_model_identity"], "openai/synthetic-model")
+        self.assertEqual(command["tool_execution"], invocation["tool_execution"])
+        self.assertEqual(command["isolation_profile"], capability["selected_isolation_profile"])
+        self.assertEqual(command["plugin_proof_strength"], capability["plugin_proof_strength"])
+        self.assertEqual(command["raw_artifact_hashes"], invocation["raw_artifact_hashes"])
+        self.assertEqual(command["model_request"]["endpoint_identity_sha256"], invocation["model_request"]["endpoint_identity_sha256"])
 
 
 if __name__ == "__main__":

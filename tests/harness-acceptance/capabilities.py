@@ -508,15 +508,21 @@ def _plugin_proof_strength_for_probe(probe: dict[str, Any]) -> Optional[str]:
 def build_capability_record(harness: str, cli_version: str, probe: dict[str, Any]) -> dict[str, Any]:
     if harness not in {"claude", "opencode"}:
         raise ValueError(f"unsupported harness: {harness}")
+    probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
+    environment = probe_results.get("environment_validation") if isinstance(probe_results, dict) else None
     selected_profile = select_isolation_profile(probe)
     record = {
         "schema_version": 1,
         "harness": harness,
         "cli_version": cli_version,
         "noninteractive": True,
-        "structured_output": True,
+        "structured_output": bool(environment.get("structured_output_supported"))
+        if harness == "claude" and isinstance(environment, dict)
+        else harness != "claude",
         "local_plugin_loading": selected_profile is not None,
-        "session_persistence_disable": True,
+        "session_persistence_disable": bool(environment.get("session_persistence_disable_supported"))
+        if harness == "claude" and isinstance(environment, dict)
+        else harness != "claude",
         "settings_isolation": selected_profile is not None,
         "auth_preserving_full_isolation": bool(
             isinstance(probe.get("probe_results"), dict)
