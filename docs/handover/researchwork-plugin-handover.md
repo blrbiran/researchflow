@@ -5,11 +5,66 @@
 > Remote: `git@github.com:blrbiran/researchflow.git`
 > Historical design checkout branch: `docs/live-harness-acceptance-design`
 > Repository-root branch: `main`
-> Repository-root HEAD: `964d14d`
-> Preserved implementation worktree from this cwd: `.worktrees/live-harness-acceptance/`
-> Preserved implementation branch: `main-preserved`
-> Preserved implementation HEAD: `2d71788`
-
+> Repository-root HEAD: `ab71a30`
+> Origin branch state: `main` matches `origin/main` at `ab71a30`
+> Preserved implementation worktree from this cwd: none
+> Preserved implementation branch: none
+> Preserved implementation HEAD: none
+> Task 4 synthetic review-closure commits now in `main`: `5ef0c7f`, `4896875`, `1b13451`, `46791dd`, `ab71a30`
+> Parent repo note: the parent `ccmem_paper` checkout currently sees `reference/researchflow` as modified both because this handover file is still uncommitted in the repo-root working tree and because the parent gitlink still points to `964d14d`; after this handover update is committed here, the parent will still need a separate gitlink update to record `ab71a30`
+> Cleanup note: the temporary `.worktrees/task4-review-close` branch/worktree used for Task 4 closure has already been merged into `main` and removed.
+> Local planning artifacts from this closure pass remain untracked in this repo:
+> - `docs/superpowers/specs/2026-07-18-task4-review-close-design.md`
+> - `docs/superpowers/plans/2026-07-18-task4-review-close.md`
+> They are context docs only and were not committed as part of the Task 4 code merge.
+> Outstanding historical local worktree to preserve:
+> - repo-local `.claude/worktrees/agent-a7e704d91a6ea7c24` still contains a tracked modification to `tests/claude-code/run-tests.sh` plus local `.omc/`; do not discard it silently.
+> There is no remaining manual `.worktrees/*` checkout under this repo root.
+> Safe verified rerun result after the final Task 4 fix on the merged branch:
+> - `bash -n tests/harness-acceptance/adapters/claude.sh` — passed
+> - `bash -n tests/harness-acceptance/adapters/opencode.sh` — passed
+> - `python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v` — **56 passed, 0 failed**
+> - `./tests/run-all.sh` — passed (`All ResearchFlow tests passed.`)
+> No real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during the Task 4 review-closure pass.
+> Task 4 is now synthetically review-closed only. There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
+> Safe observed tool versions remain:
+> - Claude Code: `2.1.214`
+> - OpenCode: `1.17.15`
+> - Python: `3.9.13`
+> Future agents should treat the latest canonical implementation state as repo-root `main @ ab71a30`.
+> The next implementation step is Task 5 synthetic preflight/orchestration on top of `main`, not another Task 4 closure pass.
+> Do not reopen Task 4 unless new evidence shows a concrete synthetic regression or a spec mismatch.
+> This handover supersedes earlier notes that Task 4 still required clean-environment synthetic review closure.
+> The latest Task 4 code merge itself is complete, but no push to remote has been performed from this session.
+> If another agent resumes this work, they should verify parent/submodule intent before making any parent-repo commits, because the parent still records the old researchflow gitlink.
+> Historical branch/worktree references below remain for provenance only where not explicitly updated.
+> Current local dirty state while this handover update is still uncommitted: this handover file plus the two untracked local planning docs listed above.
+> Once this handover update is committed, the repo-local `main` working tree should return to only those two untracked planning docs.
+> Those local docs may be kept, updated, or deleted later by explicit user choice; they are not needed for Task 5 execution.
+> The local `reference/` symlinked comparison inputs remain unchanged.
+> Nothing in this pass changed router behavior, workflow contracts, versioning, release state, or publish state.
+> The final pre-merge whole-branch review found no blocking issues, with only one non-blocking minor note about stale helper parameters in `tests/harness-acceptance/test_adapters.py`.
+> That minor note was intentionally left unfixed because it was not required for bounded Task 4 synthetic closure.
+> The final merged `main` history relevant to this pass is:
+> - `ab71a30` — `fix: fail-close full isolation capability proof`
+> - `46791dd` — `fix: remove out-of-scope cerebrum drift`
+> - `1b13451` — `fix: close Task 4 synthetic review gaps`
+> - `4896875` — `fix: fail-close Task 4 capability normalization`
+> - `5ef0c7f` — `fix: lock Task 4 prompt and workspace contract`
+> These commits, together with `6a9a451` and `007f882`, represent the final synthetic Task 4 closure state currently in `main`.
+> Keep these commit references available for future review-package generation or provenance checks.
+> If future work touches Task 5+, do not assume the old preserved `main-preserved` local workspace still exists; it no longer does.
+> Recreate any new manual worktree under `.worktrees/<feature>/` only if a new isolated workspace is needed.
+> Manual worktree count under `.worktrees/` is currently zero.
+> `origin/main` already includes `ab71a30`, so no local-only branch divergence remains inside this repo.
+> However, the parent repository still needs an explicit submodule pointer update commit if the user wants `ccmem_paper` to record the new researchflow state.
+> That parent-level action was not taken in this session.
+> Future agents should mention that distinction explicitly if asked whether everything is fully committed.
+> Inside this repo, yes; in the parent repo, no.
+> This distinction matters for any later parent-repo PR or handoff.
+> End of current-state header.
+>
+>
 ## 1. Purpose and settled decisions
 
 ResearchFlow is a standalone plugin for research and academic-paper workflows. It exposes one thin public router instead of a marketplace of overlapping research skills.
@@ -49,8 +104,8 @@ Future agents start with this ResearchFlow repository root as their cwd. From th
 ResearchFlow is an intentional submodule of the parent `ccmem_paper` repository:
 
 - parent `.gitmodules` registers `reference/researchflow` with branch `main`;
-- parent gitlink currently points to `964d14d`, matching the repo-root checkout on `main`;
-- the parent only reports the submodule as modified when the ResearchFlow working tree itself is dirty;
+- parent gitlink currently points to `964d14d`, while the repo-root checkout here is now `ab71a30` on `main`;
+- the parent currently reports `reference/researchflow` as modified because its recorded gitlink still points to `964d14d`; in the current local checkout it may also appear dirty when this repo-root working tree has uncommitted edits such as this handover update;
 - do not stage or commit unrelated parent-repo changes while working in ResearchFlow.
 
 The `.git` entry in this cwd is intentionally a submodule pointer:
@@ -72,11 +127,12 @@ git worktree list --porcelain
 
 ### 2.3 Existing worktree topology and placement decision
 
-Registered worktrees currently live in three groups:
+Registered worktrees currently live in two groups:
 
 1. harness worktrees under the Git common-dir `.git/modules/reference/researchflow/.claude/worktrees/agent-*`;
-2. older repo-local harness worktrees under `.claude/worktrees/agent-*`;
-3. the preserved manual worktree under `.worktrees/live-harness-acceptance/`.
+2. older repo-local harness worktrees under `.claude/worktrees/agent-*`.
+
+There is no remaining manual `.worktrees/*` checkout under this repo root.
 
 Do **not** move existing harness-owned `agent-*` directories with filesystem `mv`. Their paths are registered in Git administrative records and may also be owned by current or previous Claude sessions. If a move is ever required, first preserve dirty work, then use `git worktree move <old> <new>` from this cwd, one clean/unlocked worktree at a time, and verify `git worktree list --porcelain` after each move.
 
@@ -84,9 +140,9 @@ For new manually managed feature worktrees, use the ignored cwd-local `.worktree
 
 Current inventory snapshot:
 
-- Git common-dir `agent-*` worktrees: 14 registered;
-- repo-local `.claude/worktrees/agent-*` directories: 13 present;
-- cwd-local `.worktrees`: one preserved worktree.
+- Git common-dir `agent-*` worktrees: 7 registered;
+- repo-local `.claude/worktrees/agent-*` directories: 21 present;
+- cwd-local `.worktrees`: zero remaining manual worktrees.
 
 Current notable worktree state:
 
@@ -118,7 +174,7 @@ The original live-harness design/handover work happened on `docs/live-harness-ac
 Current repo-root state:
 
 - branch: `main`;
-- HEAD: `964d14d update gitignore`;
+- HEAD: `ab71a30 fix: fail-close full isolation capability proof`;
 - upstream: `origin/main`;
 - `main` currently matches `origin/main`.
 
@@ -126,20 +182,11 @@ Use the historical design branch only when you specifically need to inspect the 
 
 ### 2.6 Active implementation workspace
 
-Current preserved local workspace:
+There is no remaining manual `.worktrees/*` implementation checkout under this repo root.
 
-```text
-.worktrees/live-harness-acceptance/
-```
+The temporary `.worktrees/task4-review-close/` workspace used for the Task 4 closure pass has already been merged into `main` and removed.
 
-Current state:
-
-- branch: `main-preserved`;
-- HEAD: `2d71788 docs: refresh handover after task 4 merge`;
-- remaining untracked local artifacts are `.omc/` session state and `tests/harness-acceptance/__pycache__/`; leave both untouched unless the user explicitly requests cleanup;
-- `.superpowers/` is intentionally ignored so SDD briefs, reports, review packages, and the progress ledger remain local.
-
-This preserved worktree is now a convenience local checkout, not the canonical branch tip. Future implementation should start from repo-root `main` at `964d14d` (or a fresh worktree branched from it), not from `main-preserved` unless there is a specific reason to preserve its local state.
+Future implementation should start from repo-root `main @ ab71a30` or a fresh new worktree created from it. Do not assume the previously mentioned `main-preserved` convenience checkout still exists.
 
 ## 3. Completed thin-router delivery
 
@@ -311,14 +358,19 @@ Delivered:
 
 Review result: clean after fixes.
 
-### 5.4 Task 4 — capability probes and native adapters — merged to `main`, but still requires a clean-environment review pass
+### 5.4 Task 4 — capability probes and native adapters — synthetically review-closed on `main`
 
-Task 4 implementation commits are now in `main` ancestry:
+Task 4 implementation and closure commits now in `main` ancestry:
 
 - `6a9a451` — `test: add native harness capability adapters`
 - `007f882` — `fix: harden native harness capability probes`
+- `5ef0c7f` — `fix: lock Task 4 prompt and workspace contract`
+- `4896875` — `fix: fail-close Task 4 capability normalization`
+- `1b13451` — `fix: close Task 4 synthetic review gaps`
+- `46791dd` — `fix: remove out-of-scope cerebrum drift`
+- `ab71a30` — `fix: fail-close full isolation capability proof`
 
-Delivered files committed through those Task 4 changes include:
+Delivered files committed through Task 4 and its closure pass include:
 
 - `tests/harness-acceptance/capabilities.py`
 - `tests/harness-acceptance/adapters/claude.sh`
@@ -328,17 +380,16 @@ Delivered files committed through those Task 4 changes include:
 - adapter/capability fixtures under `tests/harness-acceptance/fixtures/adapters/**`
 - capability fixtures under `tests/harness-acceptance/fixtures/capabilities/**`
 
-What is verified:
+What is now verified on merged `main @ ab71a30`:
 
-- the preserved worktree `main-preserved @ 2d71788` passed the full `tests/harness-acceptance/test_*.py` synthetic suite on 2026-07-18 (**49 passed, 0 failed**);
-- the repo-root `main @ 964d14d` passed `./tests/run-all.sh` on 2026-07-18;
-- no real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during Task 4 implementation.
+- `bash -n tests/harness-acceptance/adapters/claude.sh` passed;
+- `bash -n tests/harness-acceptance/adapters/opencode.sh` passed;
+- `python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v` passed with **56 passed, 0 failed**;
+- `./tests/run-all.sh` passed with `All ResearchFlow tests passed.`;
+- task-scoped and whole-branch reviews both passed, with only one final non-blocking minor note about stale helper parameters in `tests/harness-acceptance/test_adapters.py`;
+- no real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during the Task 4 closure pass.
 
-Important caveat for the next agent:
-
-- task-scoped review found open real-environment confidence questions around scored-suffix composition, native JSON event-shape normalization, Claude fresh-workspace isolation, evidence-derived capability booleans, and separation between production config and test-only fixture wiring;
-- a follow-up review-fix loop was started, but the background agent was stopped before a reviewed follow-up commit landed;
-- therefore, treat Task 4 as **merged but not conclusively review-closed for real-environment acceptance confidence**. Do not revert it blindly; continue from `main` in a fresh clean environment and re-review/fix Task 4 before starting Task 5.
+Task 4 is therefore **synthetically review-closed only**. This does **not** mean live acceptance has been run. There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
 
 ### 5.5 Tasks 5–7 — not started
 
@@ -350,33 +401,24 @@ No real Claude Code, OpenCode, LiteLLM, network, or paid model invocation has be
 
 ## 6. Current test status
 
-Most recent local verification:
-
-### Repo-root `main @ 964d14d`
+Most recent local verification on merged repo-root `main @ ab71a30`:
 
 ```bash
-./tests/run-all.sh
-```
-
-Result on 2026-07-18:
-
-- OpenCode bootstrap smoke test: passed
-- Claude metadata/file smoke coverage plus repo-local routing-doc smoke coverage: passed
-- all three workflow demo contract tests: passed
-- unified result: `All ResearchFlow tests passed.`
-
-### Preserved worktree `main-preserved @ 2d71788`
-
-```bash
-cd .worktrees/live-harness-acceptance
+bash -n tests/harness-acceptance/adapters/claude.sh
+bash -n tests/harness-acceptance/adapters/opencode.sh
 python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v
 ./tests/run-all.sh
 ```
 
 Result on 2026-07-18:
 
-- harness acceptance synthetic tests: **49 passed**
-- unified smoke/test runner: passed
+- Claude adapter syntax check: passed
+- OpenCode adapter syntax check: passed
+- harness acceptance synthetic suite: **56 passed, 0 failed**
+- OpenCode bootstrap smoke test: passed
+- Claude metadata/file smoke coverage plus repo-local routing-doc smoke coverage: passed
+- all three workflow demo contract tests: passed
+- unified result: `All ResearchFlow tests passed.`
 
 Safe tool versions observed without exposing configuration values:
 
@@ -386,7 +428,9 @@ Safe tool versions observed without exposing configuration values:
 
 ## 7. Exact next step for the next agent
 
-Resume from repo-root `main @ 964d14d`; do not start Task 5 yet.
+Resume from repo-root `main @ ab71a30`.
+
+The next implementation step is **Task 5 synthetic preflight/orchestration**. Do not reopen Task 4 unless new evidence shows a concrete synthetic regression or a spec mismatch.
 
 Recommended procedure from this cwd:
 
@@ -398,34 +442,25 @@ Recommended procedure from this cwd:
    docs/superpowers/plans/2026-07-17-live-harness-acceptance.md
    ```
 
-3. Re-review the merged Task 4 implementation against the real adapter contract, with special attention to:
-   - scored-prompt suffix composition;
-   - native JSON event-shape normalization for Claude and OpenCode;
-   - Claude fresh-workspace isolation during case execution;
-   - evidence-derived capability flags instead of optimistic assumptions;
-   - separation between production config and test-only fixture wiring.
-
-4. Land any remaining Task 4 fixes on a new branch from `main`, rerun:
+3. Implement Task 5 synthetic preflight/orchestration on top of the now-closed Task 4 synthetic baseline.
+4. Rerun at least:
 
    ```bash
    python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v
    ./tests/run-all.sh
    ```
 
-5. Only after Task 4 is review-closed in the fresh environment should work continue to Task 5 synthetic preflight/orchestration.
-
-6. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
-7. Do not invoke real `claude`, `opencode`, LiteLLM, network services, or models until the plan explicitly reaches the real preflight/run stages.
+5. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
+6. Do not invoke real `claude`, `opencode`, LiteLLM, network services, or models until the plan explicitly reaches the real preflight/run stages.
 
 ## 8. Remaining implementation order and stop conditions
 
 Proceed in this order only:
 
-1. Task 4 review closure and any remaining synthetic fixes on top of `main`
-2. Task 5 synthetic preflight/orchestration
-3. Task 5 review and full synthetic baseline
-4. Task 6 real preflight-only run
-5. Task 7 scored run only if all hard gates pass
+1. Task 5 synthetic preflight/orchestration
+2. Task 5 review and full synthetic baseline
+3. Task 6 real preflight-only run
+4. Task 7 scored run only if all hard gates pass
 
 Hard stops:
 
@@ -436,13 +471,12 @@ Hard stops:
 - If a successful tool execution occurs during a scored case, classify it as `harness_error`.
 - Never retry a scored case in the original run.
 - Never exceed 14 scored invocations.
-- Do not treat the merged Task 4 commits as final proof of real-environment correctness without the fresh-environment review pass above.
+- Do not treat the synthetic Task 4 closure as proof that Tasks 6–7 will pass; it only removes the known synthetic adapter/probe blockers.
 
 ## 9. Known limitations and unresolved work
 
 - Claude Code still has no saved real fresh-session routing transcript.
 - OpenCode still has no saved external real-session acceptance transcript.
-- Task 4 is merged to `main`, but follow-up review findings around real-environment confidence remain unresolved until a clean-environment review/fix pass is completed.
 - No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists.
 - No live acceptance result exists; do not claim acceptance, stability, or release readiness.
 - Release version remains `0.1.0`.
@@ -450,6 +484,7 @@ Hard stops:
 - Cross-artifact semantic checks and contract-schema centralization remain separate future work.
 - repo-local `agent-a7e704d91a6ea7c24` still carries a historical dirty tracked change and must not be silently discarded.
 - Many remaining harness worktrees appear to be session residue with only `.omc/` or other untracked local artifacts; clean them only with explicit per-path review and user approval.
+- the parent `ccmem_paper` repository still records the old ResearchFlow submodule pointer (`964d14d`) and needs a separate parent-repo commit if the user wants the parent to capture `ab71a30`.
 
 ## 10. Safety and workflow reminders
 
