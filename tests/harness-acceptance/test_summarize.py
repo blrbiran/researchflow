@@ -209,7 +209,29 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual(summary["harnesses"]["opencode"]["plugin_source_id"], "researchflow-checkout")
         self.assertFalse(summary["acceptance_passed"])
 
+    def test_build_summary_uses_evaluated_preflight_when_model_proof_is_malformed(self):
+        run_dir = self.make_run_dir()
+        malformed_proof = copy.deepcopy(self.base_model_proof)
+        malformed_proof.pop("proof_sha256")
+        write_json(run_dir / "preflight" / "claude-model-proof.json", malformed_proof)
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        claude_rows = [row for row in summary["accounting_rows"] if row["harness"] == "claude"]
+        opencode_rows = [row for row in summary["accounting_rows"] if row["harness"] == "opencode"]
+        self.assertTrue(all(row["status"] == "unattempted" for row in claude_rows + opencode_rows))
+        self.assertEqual({row["reason_code"] for row in claude_rows}, {"claude_preflight_blocked"})
+        self.assertEqual({row["reason_code"] for row in opencode_rows}, {"global_hard_gate_blocked"})
+        self.assertEqual(summary["harnesses"]["claude"]["preflight"], "blocked")
+        self.assertEqual(summary["harnesses"]["claude"]["resolved_model_identity"], "openai/synthetic-model")
+        self.assertFalse(summary["model_alignment"]["aligned"])
+        self.assertTrue(summary["model_alignment"]["blocked"])
+
     def test_build_summary_model_block_creates_all_14_unattempted_rows(self):
+        self.set_allowlist(
+            {
+                "synthetic-model": "openai/synthetic-model",
+                "other-synthetic-model": "openai/other-synthetic-model",
+            }
+        )
         run_dir = self.make_run_dir()
         mismatched_model = copy.deepcopy(self.base_model_proof)
         mismatched_model["harness"] = "opencode"

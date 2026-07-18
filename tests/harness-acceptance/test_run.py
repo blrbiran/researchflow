@@ -242,6 +242,25 @@ class RunTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "existing case artifact"):
                 self.run_module.run_original(config, "2026-07-18T124500Z", "scored")
 
+    def test_preflight_only_rejects_duplicate_run_id(self):
+        self.install_fake_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(Path(temp_dir) / "results")
+            self.run_module.run_original(config, "2026-07-18T125500Z", "preflight-only")
+            with self.assertRaises(FileExistsError):
+                self.run_module.run_original(config, "2026-07-18T125500Z", "preflight-only")
+
+    def test_scored_rejects_duplicate_completion(self):
+        self.install_fake_adapter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(Path(temp_dir) / "results")
+            self.run_module.run_original(config, "2026-07-18T130500Z", "preflight-only")
+            self.run_module.run_original(config, "2026-07-18T130500Z", "scored")
+            with self.assertRaisesRegex(ValueError, "scored phase already completed"):
+                self.run_module.run_original(config, "2026-07-18T130500Z", "scored")
+
     def test_main_parses_cli_arguments_and_invokes_run_original(self):
         calls = {}
         original = self.run_module.run_original
