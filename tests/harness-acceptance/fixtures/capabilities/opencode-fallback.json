@@ -2,10 +2,20 @@
   "harness": "opencode",
   "workspace_plugin_matches_checkout": true,
   "probe_results": {
+    "repo_validation": {
+      "plugin_source_file_valid": true,
+      "required_skill_inventory_valid": true,
+      "required_skill_inventory_missing": [],
+      "workspace_config_valid": true
+    },
     "debug": {
       "config": false,
+      "config_source_match": false,
       "paths": true,
-      "skill": false
+      "paths_source_match": true,
+      "paths_isolation_supported": true,
+      "skill": false,
+      "skill_inventory_valid": false
     },
     "run": {
       "canary_passed": true

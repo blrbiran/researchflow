@@ -1,14 +1,29 @@
 {
   "harness": "claude",
   "probe_results": {
+    "repo_validation": {
+      "plugin_metadata_valid": true,
+      "marketplace_metadata_valid": true,
+      "required_skill_inventory_valid": true,
+      "required_skill_inventory_missing": []
+    },
+    "environment_validation": {
+      "plugin_dir_supported": true,
+      "session_persistence_disable_supported": true,
+      "tools_disable_supported": true,
+      "structured_output_supported": true,
+      "full_isolation_supported": false
+    },
     "direct_plugin_dir": {
       "flag_supported": true,
+      "configured_checkout_match": true,
       "canary_passed": true
     },
     "marketplace": {
       "registration_supported": true,
       "install_supported": true,
-      "resolved_checkout_match": true
+      "resolved_checkout_match": true,
+      "canary_passed": false
     },
     "full_isolation_auth_compatible": false,
     "auth_preserving_supported": true

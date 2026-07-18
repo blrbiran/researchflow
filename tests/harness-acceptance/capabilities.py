@@ -35,6 +35,14 @@ OPENCODE_STATIC_PROOF_STRENGTH = "workspace_config_static_inventory_canary"
 CANARY_MARKER = "RESEARCHFLOW_BOOTSTRAP_ACTIVE"
 DEFAULT_PLUGIN_SOURCE_ID = "researchflow-checkout"
 DEFAULT_RESIDUAL_CATEGORIES = ["auth", "admin-policy"]
+REQUIRED_PRIMARY_SKILLS = (
+    "using-researchflow",
+    "literature-discovery",
+    "paper-structuring",
+    "paper-drafting",
+    "paper-review",
+    "artifact-packaging",
+)
 
 
 def read_config(path: Path) -> dict[str, Any]:
@@ -104,6 +112,16 @@ def _read_json_file(path: Path) -> Any:
         return None
 
 
+def _read_json_object(path: Path) -> Optional[dict[str, Any]]:
+    value = _read_json_file(path)
+    return value if isinstance(value, dict) else None
+
+
+def _read_json_list(path: Path) -> Optional[list[Any]]:
+    value = _read_json_file(path)
+    return value if isinstance(value, list) else None
+
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -129,10 +147,10 @@ def _read_cli_version(path: Path) -> str:
 def _response_text(events: list[dict[str, Any]]) -> str:
     parts: list[str] = []
     for event in events:
-        if event.get("event") == "response":
-            text = event.get("text", "")
-            if not isinstance(text, str):
-                raise ValueError("response event text must be a string")
+        if event.get("event") != "response":
+            continue
+        text = event.get("text")
+        if isinstance(text, str):
             parts.append(text)
     return "".join(parts)
 
@@ -143,7 +161,7 @@ def _canary_passed(events: list[dict[str, Any]]) -> bool:
     return first_line == CANARY_MARKER
 
 
-def _extract_model_event(events: list[dict[str, Any]]) -> dict[str, str]:
+def _extract_model_event(events: list[dict[str, Any]]) -> dict[str, Any]:
     for event in events:
         if event.get("event") != "model":
             continue
@@ -177,6 +195,116 @@ def _unique_preserve_order(values: list[str]) -> list[str]:
         seen.add(value)
         ordered.append(value)
     return ordered
+
+
+def _truthy(value: Any) -> bool:
+    return value is True
+
+
+def _required_skill_inventory(repo_root: Path) -> dict[str, Any]:
+    present: list[str] = []
+    missing: list[str] = []
+    for skill_name in REQUIRED_PRIMARY_SKILLS:
+        skill_path = repo_root / "skills" / skill_name / "SKILL.md"
+        if skill_path.exists():
+            present.append(skill_name)
+        else:
+            missing.append(skill_name)
+    return {
+        "valid": not missing,
+        "present": present,
+        "missing": missing,
+    }
+
+
+def _validate_claude_repo(repo_root: Path) -> dict[str, Any]:
+    plugin_payload = _read_json_object(repo_root / ".claude-plugin" / "plugin.json")
+    marketplace_payload = _read_json_object(repo_root / ".claude-plugin" / "marketplace.json")
+    plugin_metadata_valid = bool(
+        plugin_payload
+        and plugin_payload.get("name") == "researchflow"
+        and isinstance(plugin_payload.get("description"), str)
+        and plugin_payload.get("description")
+        and isinstance(plugin_payload.get("version"), str)
+        and plugin_payload.get("version")
+    )
+    marketplace_entry = None
+    if marketplace_payload and isinstance(marketplace_payload.get("plugins"), list):
+        for item in marketplace_payload["plugins"]:
+            if isinstance(item, dict) and item.get("name") == "researchflow":
+                marketplace_entry = item
+                break
+    marketplace_metadata_valid = bool(
+        marketplace_payload
+        and marketplace_payload.get("name")
+        and marketplace_entry
+        and marketplace_entry.get("source") == "./"
+    )
+    skills = _required_skill_inventory(repo_root)
+    return {
+        "plugin_metadata_valid": plugin_metadata_valid,
+        "marketplace_metadata_valid": marketplace_metadata_valid,
+        "required_skill_inventory_valid": skills["valid"],
+        "required_skill_inventory_missing": skills["missing"],
+    }
+
+
+def _validate_opencode_repo(repo_root: Path) -> dict[str, Any]:
+    plugin_source = _read_text(repo_root / ".opencode" / "plugins" / "researchflow.js")
+    plugin_source_file_valid = all(
+        marker in plugin_source
+        for marker in ("ResearchflowPlugin", "using-researchflow", "skillsDir")
+    )
+    skills = _required_skill_inventory(repo_root)
+    return {
+        "plugin_source_file_valid": plugin_source_file_valid,
+        "required_skill_inventory_valid": skills["valid"],
+        "required_skill_inventory_missing": skills["missing"],
+    }
+
+
+def _validate_opencode_workspace_config(path: Path, repo_root: str) -> bool:
+    payload = _read_json_object(path)
+    if not payload:
+        return False
+    plugins = payload.get("plugin")
+    if not isinstance(plugins, list):
+        return False
+    return repo_root in plugins
+
+
+def _runtime_skill_inventory_valid(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    skills = payload.get("skills")
+    if not isinstance(skills, list):
+        return False
+    skill_names = {item for item in skills if isinstance(item, str)}
+    return all(skill in skill_names for skill in REQUIRED_PRIMARY_SKILLS)
+
+
+def _plugin_path_matches(payload: Any, repo_root: str) -> bool:
+    return isinstance(payload, dict) and payload.get("plugin_path") == repo_root
+
+
+def _opencode_paths_isolation_supported(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    for key in ("config_dir", "data_dir", "cache_dir", "state_dir"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return True
+    return False
+
+
+def _claude_environment_validation(help_text: str) -> dict[str, bool]:
+    return {
+        "plugin_dir_supported": "--plugin-dir" in help_text,
+        "session_persistence_disable_supported": "--no-session-persistence" in help_text,
+        "tools_disable_supported": "--tools" in help_text,
+        "structured_output_supported": "--output-format json" in help_text,
+        "full_isolation_supported": "--bare" in help_text,
+    }
 
 
 def classify_tool_execution(events: list[dict[str, Any]]) -> dict[str, Any]:
@@ -229,47 +357,104 @@ def classify_tool_execution(events: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _claude_branch_from_probe(probe: dict[str, Any]) -> Optional[str]:
-    return select_claude_load_branch(probe)
+def _claude_repo_validation_ok(probe_results: dict[str, Any]) -> bool:
+    repo_validation = probe_results.get("repo_validation")
+    return bool(
+        isinstance(repo_validation, dict)
+        and _truthy(repo_validation.get("plugin_metadata_valid"))
+        and _truthy(repo_validation.get("marketplace_metadata_valid"))
+        and _truthy(repo_validation.get("required_skill_inventory_valid"))
+    )
+
+
+def _claude_environment_ok(probe_results: dict[str, Any]) -> bool:
+    environment = probe_results.get("environment_validation")
+    return bool(
+        isinstance(environment, dict)
+        and _truthy(environment.get("session_persistence_disable_supported"))
+        and _truthy(environment.get("tools_disable_supported"))
+        and _truthy(environment.get("structured_output_supported"))
+    )
 
 
 def select_claude_load_branch(probe: dict[str, Any]) -> Optional[str]:
     probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
     if not isinstance(probe_results, dict):
         return None
+    if not _claude_repo_validation_ok(probe_results):
+        return None
+    if not _claude_environment_ok(probe_results):
+        return None
+
     direct_plugin_dir = probe_results.get("direct_plugin_dir")
     if isinstance(direct_plugin_dir, dict):
-        if direct_plugin_dir.get("flag_supported") and direct_plugin_dir.get("canary_passed"):
+        if (
+            _truthy(direct_plugin_dir.get("flag_supported"))
+            and _truthy(direct_plugin_dir.get("configured_checkout_match"))
+            and direct_plugin_dir.get("canary_passed") is True
+        ):
             return CLAUDE_DIRECT_BRANCH
+
     marketplace = probe_results.get("marketplace")
     if isinstance(marketplace, dict):
         if (
-            marketplace.get("registration_supported")
-            and marketplace.get("install_supported")
-            and marketplace.get("resolved_checkout_match")
-            and marketplace.get("canary_passed", True)
+            _truthy(marketplace.get("registration_supported"))
+            and _truthy(marketplace.get("install_supported"))
+            and _truthy(marketplace.get("resolved_checkout_match"))
+            and marketplace.get("canary_passed") is True
         ):
             return CLAUDE_MARKETPLACE_BRANCH
     return None
 
 
+def _opencode_repo_validation_ok(probe_results: dict[str, Any]) -> bool:
+    repo_validation = probe_results.get("repo_validation")
+    return bool(
+        isinstance(repo_validation, dict)
+        and _truthy(repo_validation.get("plugin_source_file_valid"))
+        and _truthy(repo_validation.get("required_skill_inventory_valid"))
+        and _truthy(repo_validation.get("workspace_config_valid"))
+    )
+
+
 def select_opencode_proof_branch(probe: dict[str, Any]) -> Optional[str]:
-    if not isinstance(probe, dict):
-        return None
-    if not probe.get("workspace_plugin_matches_checkout"):
-        return None
-    probe_results = probe.get("probe_results")
+    probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
     if not isinstance(probe_results, dict):
         return None
-    run = probe_results.get("run")
-    if not isinstance(run, dict) or not run.get("canary_passed"):
+    if not _opencode_repo_validation_ok(probe_results):
         return None
+
+    run = probe_results.get("run")
+    if not isinstance(run, dict) or run.get("canary_passed") is not True:
+        return None
+
     debug = probe_results.get("debug")
     if not isinstance(debug, dict):
-        return OPENCODE_FALLBACK_BRANCH
-    if debug.get("config") and debug.get("paths") and debug.get("skill"):
+        return None
+
+    config_available = _truthy(debug.get("config"))
+    config_valid = (not config_available) or _truthy(debug.get("config_source_match"))
+    paths_available = _truthy(debug.get("paths"))
+    paths_valid = (
+        paths_available
+        and _truthy(debug.get("paths_source_match"))
+        and _truthy(debug.get("paths_isolation_supported"))
+    )
+    skill_available = _truthy(debug.get("skill"))
+    skill_valid = (not skill_available) or _truthy(debug.get("skill_inventory_valid"))
+
+    if (
+        config_available
+        and _truthy(debug.get("config_source_match"))
+        and paths_valid
+        and skill_available
+        and _truthy(debug.get("skill_inventory_valid"))
+    ):
         return OPENCODE_STRONG_BRANCH
-    return OPENCODE_FALLBACK_BRANCH
+
+    if paths_valid and config_valid and skill_valid:
+        return OPENCODE_FALLBACK_BRANCH
+    return None
 
 
 def select_isolation_profile(probe: dict[str, Any]) -> Optional[str]:
@@ -279,12 +464,16 @@ def select_isolation_profile(probe: dict[str, Any]) -> Optional[str]:
         if branch is None:
             return None
         probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
-        full_isolation = False
-        if isinstance(probe_results, dict):
-            full_isolation = bool(probe_results.get("full_isolation_auth_compatible"))
-            auth_preserving = bool(probe_results.get("auth_preserving_supported"))
-        else:
-            auth_preserving = False
+        environment = probe_results.get("environment_validation") if isinstance(probe_results, dict) else None
+        full_isolation = bool(
+            isinstance(environment, dict)
+            and _truthy(environment.get("full_isolation_supported"))
+            and isinstance(probe_results, dict)
+            and _truthy(probe_results.get("full_isolation_auth_compatible"))
+        )
+        auth_preserving = bool(
+            isinstance(probe_results, dict) and _truthy(probe_results.get("auth_preserving_supported"))
+        )
         if full_isolation:
             return CLAUDE_FULL_DIRECT if branch == CLAUDE_DIRECT_BRANCH else CLAUDE_FULL_MARKETPLACE
         if auth_preserving:
@@ -319,20 +508,21 @@ def _plugin_proof_strength_for_probe(probe: dict[str, Any]) -> Optional[str]:
 def build_capability_record(harness: str, cli_version: str, probe: dict[str, Any]) -> dict[str, Any]:
     if harness not in {"claude", "opencode"}:
         raise ValueError(f"unsupported harness: {harness}")
+    selected_profile = select_isolation_profile(probe)
     record = {
         "schema_version": 1,
         "harness": harness,
         "cli_version": cli_version,
         "noninteractive": True,
         "structured_output": True,
-        "local_plugin_loading": select_isolation_profile(probe) is not None,
+        "local_plugin_loading": selected_profile is not None,
         "session_persistence_disable": True,
-        "settings_isolation": select_isolation_profile(probe) is not None,
+        "settings_isolation": selected_profile is not None,
         "auth_preserving_full_isolation": bool(
             isinstance(probe.get("probe_results"), dict)
-            and probe["probe_results"].get("full_isolation_auth_compatible")
+            and _truthy(probe["probe_results"].get("full_isolation_auth_compatible"))
         ),
-        "selected_isolation_profile": select_isolation_profile(probe),
+        "selected_isolation_profile": selected_profile,
         "plugin_proof_strength": _plugin_proof_strength_for_probe(probe),
     }
     if harness == "claude":
@@ -342,8 +532,8 @@ def build_capability_record(harness: str, cli_version: str, probe: dict[str, Any
         record["optional_cli_validation"] = bool(
             isinstance(probe.get("probe_results"), dict)
             and isinstance(probe["probe_results"].get("cli_validation"), dict)
-            and probe["probe_results"]["cli_validation"].get("supported")
-            and probe["probe_results"]["cli_validation"].get("passed")
+            and _truthy(probe["probe_results"]["cli_validation"].get("supported"))
+            and _truthy(probe["probe_results"]["cli_validation"].get("passed"))
         )
         record["probe_results"] = probe.get("probe_results", {})
     else:
@@ -401,78 +591,108 @@ def _write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _resolve_marketplace_checkout_match(payload: Any, repo_root: str) -> bool:
+    if not isinstance(payload, list):
+        return False
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        if item.get("name") != "researchflow":
+            continue
+        if item.get("path") == repo_root or item.get("source") == repo_root:
+            return True
+    return False
+
+
 def _probe_from_claude_dir(config: dict[str, Any], probe_dir: Path) -> tuple[str, dict[str, Any]]:
+    repo_root = Path(str(config["repo_root"])).resolve()
+    repo_validation = _validate_claude_repo(repo_root)
     help_text = _read_text(probe_dir / "help.txt")
     plugin_help_text = _read_text(probe_dir / "plugin-help.txt")
+    environment_validation = _claude_environment_validation(help_text)
     direct_events = _read_jsonl(probe_dir / "direct-canary.jsonl")
     marketplace_events = _read_jsonl(probe_dir / "marketplace-canary.jsonl")
     full_events = _read_jsonl(probe_dir / "full-direct-canary.jsonl")
-    marketplace_payload = _read_json_file(probe_dir / "marketplace-list.json")
-    repo_root = str(config["repo_root"])
-    cli_version = _read_cli_version(probe_dir / "version.txt")
-    resolved_checkout_match = False
-    if isinstance(marketplace_payload, list) and marketplace_payload:
-        first = marketplace_payload[0]
-        if isinstance(first, dict) and first.get("path") == repo_root:
-            resolved_checkout_match = True
+    marketplace_payload = _read_json_list(probe_dir / "marketplace-list.json")
+    direct_canary = _read_status(probe_dir / "direct-canary.status") == 0 and _canary_passed(direct_events)
+    marketplace_canary = _read_status(probe_dir / "marketplace-canary.status") == 0 and _canary_passed(marketplace_events)
+    full_canary = _read_status(probe_dir / "full-direct-canary.status") == 0 and _canary_passed(full_events)
+    auth_preserving_supported = bool(
+        _claude_environment_ok(
+            {
+                "repo_validation": repo_validation,
+                "environment_validation": environment_validation,
+            }
+        )
+        and (direct_canary or marketplace_canary)
+    )
     probe = {
         "harness": "claude",
         "probe_results": {
+            "repo_validation": repo_validation,
+            "environment_validation": environment_validation,
             "direct_plugin_dir": {
-                "flag_supported": "--plugin-dir" in help_text,
-                "canary_passed": _read_status(probe_dir / "direct-canary.status") == 0 and _canary_passed(direct_events),
+                "flag_supported": environment_validation["plugin_dir_supported"],
+                "configured_checkout_match": repo_root.exists(),
+                "canary_passed": direct_canary,
             },
             "marketplace": {
                 "registration_supported": "list" in plugin_help_text,
-                "install_supported": _read_status(probe_dir / "marketplace-list.status") == 0,
-                "resolved_checkout_match": resolved_checkout_match,
-                "canary_passed": _read_status(probe_dir / "marketplace-canary.status") == 0 and _canary_passed(marketplace_events),
+                "install_supported": _read_status(probe_dir / "marketplace-list.status") == 0 and marketplace_payload is not None,
+                "resolved_checkout_match": _resolve_marketplace_checkout_match(marketplace_payload, str(repo_root)),
+                "canary_passed": marketplace_canary,
             },
             "cli_validation": {
                 "supported": "validate" in plugin_help_text,
                 "passed": _read_status(probe_dir / "validate.status") == 0,
             },
-            "full_isolation_auth_compatible": _read_status(probe_dir / "full-direct-canary.status") == 0 and _canary_passed(full_events),
-            "auth_preserving_supported": (
-                (_read_status(probe_dir / "direct-canary.status") == 0 and _canary_passed(direct_events))
-                or (_read_status(probe_dir / "marketplace-canary.status") == 0 and _canary_passed(marketplace_events))
-            ),
+            "full_isolation_auth_compatible": bool(environment_validation["full_isolation_supported"] and full_canary),
+            "auth_preserving_supported": auth_preserving_supported,
         },
     }
-    return cli_version, probe
+    return _read_cli_version(probe_dir / "version.txt"), probe
 
 
 def _probe_from_opencode_dir(config: dict[str, Any], probe_dir: Path) -> tuple[str, dict[str, Any]]:
-    cli_version = _read_cli_version(probe_dir / "version.txt")
+    repo_root = Path(str(config["repo_root"])).resolve()
+    repo_validation = _validate_opencode_repo(repo_root)
+    debug_config_payload = _read_json_object(probe_dir / "debug-config.json")
+    debug_paths_payload = _read_json_object(probe_dir / "debug-paths.json")
+    debug_skill_payload = _read_json_object(probe_dir / "debug-skill.json")
     debug_config_status = _read_status(probe_dir / "debug-config.status") == 0
     debug_paths_status = _read_status(probe_dir / "debug-paths.status") == 0
     debug_skill_status = _read_status(probe_dir / "debug-skill.status") == 0
     canary_events = _read_jsonl(probe_dir / "canary.jsonl")
-    workspace_plugin_matches_checkout = False
-    for payload in (
-        _read_json_file(probe_dir / "debug-config.json"),
-        _read_json_file(probe_dir / "debug-paths.json"),
-    ):
-        if isinstance(payload, dict) and payload.get("plugin_path") == str(config["repo_root"]):
-            workspace_plugin_matches_checkout = True
-            break
-    if not workspace_plugin_matches_checkout:
-        workspace_plugin_matches_checkout = bool(config.get("workspace_plugin_matches_checkout", False))
+    workspace_config_valid = _validate_opencode_workspace_config(
+        probe_dir / "workspace" / "opencode.json",
+        str(repo_root),
+    )
+    repo_validation["workspace_config_valid"] = workspace_config_valid
+    config_source_match = debug_config_status and _plugin_path_matches(debug_config_payload, str(repo_root))
+    paths_source_match = debug_paths_status and _plugin_path_matches(debug_paths_payload, str(repo_root))
+    skill_inventory_valid = debug_skill_status and _runtime_skill_inventory_valid(debug_skill_payload)
+    paths_isolation_supported = debug_paths_status and _opencode_paths_isolation_supported(debug_paths_payload)
+    workspace_plugin_matches_checkout = bool(workspace_config_valid or config_source_match or paths_source_match)
     probe = {
         "harness": "opencode",
         "workspace_plugin_matches_checkout": workspace_plugin_matches_checkout,
         "probe_results": {
+            "repo_validation": repo_validation,
             "debug": {
                 "config": debug_config_status,
+                "config_source_match": config_source_match,
                 "paths": debug_paths_status,
+                "paths_source_match": paths_source_match,
+                "paths_isolation_supported": paths_isolation_supported,
                 "skill": debug_skill_status,
+                "skill_inventory_valid": skill_inventory_valid,
             },
             "run": {
                 "canary_passed": _read_status(probe_dir / "canary.status") == 0 and _canary_passed(canary_events),
             },
         },
     }
-    return cli_version, probe
+    return _read_cli_version(probe_dir / "version.txt"), probe
 
 
 def probe_from_dir(harness: str, config: dict[str, Any], probe_dir: Path) -> tuple[str, dict[str, Any]]:
@@ -585,7 +805,6 @@ def command_normalize_preflight(args: argparse.Namespace) -> int:
     cli_version, probe = probe_from_dir(args.harness, config, Path(args.probe_dir))
     capability = build_capability_record(args.harness, cli_version, probe)
     events_path = Path(args.events)
-    stderr_path = Path(args.stderr)
     events = _read_jsonl(events_path)
     preflight = build_preflight_record(
         capability,
@@ -602,7 +821,6 @@ def command_normalize_preflight(args: argparse.Namespace) -> int:
     )
     lib.write_json(Path(args.output), preflight)
     lib.write_json(Path(args.model_output), model_proof)
-    _ = stderr_path
     return 0
 
 
@@ -614,7 +832,8 @@ def command_normalize_case(args: argparse.Namespace) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     events_path = Path(args.events)
     stderr_path = Path(args.stderr)
-    exit_code = int(Path(args.status).read_text(encoding="utf-8").strip())
+    exit_code_text = Path(args.status).read_text(encoding="utf-8").strip()
+    exit_code = int(exit_code_text) if exit_code_text else 1
     invocation, command, final_response = build_invocation_record(
         args.harness,
         config,

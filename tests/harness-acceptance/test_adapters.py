@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -37,13 +38,29 @@ class AdapterTest(unittest.TestCase):
         cls.fake_claude = ADAPTER_FIXTURE_DIR / "fake-claude.sh"
         cls.fake_opencode = ADAPTER_FIXTURE_DIR / "fake-opencode.sh"
 
-    def make_config(self, temp_root: Path, scenario_name: str, harness: str) -> Path:
+    def clone_scenario(self, temp_root: Path, scenario_name: str) -> Path:
+        source = ADAPTER_FIXTURE_DIR / scenario_name
+        target = temp_root / f"{scenario_name}-clone"
+        shutil.copytree(source, target)
+        return target
+
+    def make_config(
+        self,
+        temp_root: Path,
+        scenario_name: str,
+        harness: str,
+        *,
+        scenario_dir: Optional[Path] = None,
+        repo_root: Optional[Path] = None,
+    ) -> Path:
         raw_dir = temp_root / "raw"
         output_dir = temp_root / "out"
         output_dir.mkdir(parents=True, exist_ok=True)
+        effective_repo_root = repo_root or ROOT
+        effective_scenario_dir = scenario_dir or (ADAPTER_FIXTURE_DIR / scenario_name)
         config = {
             "run_id": "2026-07-17T120000Z",
-            "repo_root": str(ROOT),
+            "repo_root": str(effective_repo_root),
             "repo_commit_sha": "c" * 40,
             "timeout_seconds": 120,
             "endpoint_identity": "https://proxy.example.com/v1?token=secret",
@@ -52,13 +69,13 @@ class AdapterTest(unittest.TestCase):
             "raw_dir": str(raw_dir),
             "claude": {
                 "cli_bin": str(self.fake_claude),
-                "scenario_dir": str(ADAPTER_FIXTURE_DIR / scenario_name),
+                "scenario_dir": str(effective_scenario_dir),
                 "harness_model_value": "fable",
                 "effort_or_variant": "high",
             },
             "opencode": {
                 "cli_bin": str(self.fake_opencode),
-                "scenario_dir": str(ADAPTER_FIXTURE_DIR / scenario_name),
+                "scenario_dir": str(effective_scenario_dir),
                 "harness_model_value": "openai/synthetic-model",
                 "effort_or_variant": "high",
             },
@@ -186,6 +203,67 @@ class AdapterTest(unittest.TestCase):
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertNotEqual(second.returncode, 0)
             self.assertIn("final-response.txt", second.stderr)
+
+    def test_capability_mode_refuses_overwrite(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            config_path = self.make_config(temp_root, "claude-direct", "claude")
+            output_dir = temp_root / "capabilities"
+            first = self.run_adapter(self.claude_adapter, "capability", config_path, output_dir)
+            second = self.run_adapter(self.claude_adapter, "capability", config_path, output_dir)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertNotEqual(second.returncode, 0)
+            self.assertIn("claude.json", second.stderr)
+
+    def test_preflight_mode_refuses_overwrite_before_partial_bundle_write(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            config_path = self.make_config(temp_root, "opencode-strong", "opencode")
+            output_dir = temp_root / "preflight"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            (output_dir / "opencode-model-proof.json").write_text("{}\n", encoding="utf-8")
+            result = self.run_adapter(self.opencode_adapter, "preflight", config_path, output_dir)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("opencode-model-proof.json", result.stderr)
+            self.assertFalse((output_dir / "opencode.json").exists())
+
+    def test_capability_mode_fail_closes_on_empty_and_malformed_probe_outputs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            scenario_dir = self.clone_scenario(temp_root, "claude-direct")
+            (scenario_dir / "version.txt").write_text("", encoding="utf-8")
+            (scenario_dir / "help.txt").write_text("", encoding="utf-8")
+            (scenario_dir / "marketplace-list-template.json").write_text("{", encoding="utf-8")
+            config_path = self.make_config(temp_root, "claude-direct", "claude", scenario_dir=scenario_dir)
+            output_dir = temp_root / "capabilities"
+            result = self.run_adapter(self.claude_adapter, "capability", config_path, output_dir)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            capability = read_json(output_dir / "claude.json")
+            self.assertEqual(capability["cli_version"], "unknown")
+            self.assertIsNone(capability["selected_load_branch"])
+            self.assertIsNone(capability["selected_isolation_profile"])
+
+    def test_capability_mode_blocks_invalid_repo_validation_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            invalid_repo = temp_root / "invalid-repo"
+            invalid_repo.mkdir(parents=True, exist_ok=True)
+
+            claude_config = self.make_config(temp_root / "claude", "claude-direct", "claude", repo_root=invalid_repo)
+            claude_output = temp_root / "claude-capabilities"
+            claude_result = self.run_adapter(self.claude_adapter, "capability", claude_config, claude_output)
+            self.assertEqual(claude_result.returncode, 0, claude_result.stderr)
+            claude_capability = read_json(claude_output / "claude.json")
+            self.assertIsNone(claude_capability["selected_load_branch"])
+            self.assertIsNone(claude_capability["selected_isolation_profile"])
+
+            opencode_config = self.make_config(temp_root / "opencode", "opencode-strong", "opencode", repo_root=invalid_repo)
+            opencode_output = temp_root / "opencode-capabilities"
+            opencode_result = self.run_adapter(self.opencode_adapter, "capability", opencode_config, opencode_output)
+            self.assertEqual(opencode_result.returncode, 0, opencode_result.stderr)
+            opencode_capability = read_json(opencode_output / "opencode.json")
+            self.assertIsNone(opencode_capability["selected_proof_branch"])
+            self.assertIsNone(opencode_capability["selected_isolation_profile"])
 
 
 if __name__ == "__main__":
