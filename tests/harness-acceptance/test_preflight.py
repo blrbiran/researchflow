@@ -42,6 +42,22 @@ class PreflightTest(unittest.TestCase):
             "harness_aliases": {"fable": {"does_not_prove_backing_model": True, "may_route_via": "litellm"}},
         }
 
+    def test_load_identities_uses_shared_lib_reader(self):
+        sentinel = {"allowed_provider": "openai"}
+        captured = {}
+        original = self.preflight.lib.read_json
+        try:
+            def fake_read_json(path: Path):
+                captured["path"] = path
+                return sentinel
+
+            self.preflight.lib.read_json = fake_read_json
+            result = self.preflight.load_identities(HARNESS_DIR)
+        finally:
+            self.preflight.lib.read_json = original
+        self.assertIs(result, sentinel)
+        self.assertEqual(captured["path"], HARNESS_DIR / "model-identities.json")
+
     def test_evaluate_preflight_blocks_when_profile_or_plugin_proof_is_missing(self):
         capability = copy.deepcopy(self.capability["claude"])
         preflight = copy.deepcopy(self.base_preflight["claude"])
@@ -79,10 +95,10 @@ class PreflightTest(unittest.TestCase):
         }
         allowlist_gap = self.preflight.evaluate_model_alignment(claude, opencode)
         self.assertFalse(allowlist_gap["aligned"])
-        self.assertEqual(allowlist_gap["reason_code"], "global_hard_gate_blocked")
+        self.assertEqual(allowlist_gap["reason_code"], self.preflight.lib.REASON_CODES[3])
 
         mismatched = copy.deepcopy(opencode)
         mismatched["proof_identity"] = "openai/other-synthetic-model"
         mismatch = self.preflight.evaluate_model_alignment(claude, mismatched)
         self.assertFalse(mismatch["aligned"])
-        self.assertEqual(mismatch["reason_code"], "model_alignment_blocked")
+        self.assertEqual(mismatch["reason_code"], self.preflight.lib.REASON_CODES[2])

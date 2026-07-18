@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import json
+import sys
 from pathlib import Path
 from typing import Any
 
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+
+import lib  # noqa: E402
+
+(
+    _CLAUDE_PREFLIGHT_BLOCKED,
+    _OPENCODE_PREFLIGHT_BLOCKED,
+    MODEL_ALIGNMENT_BLOCKED,
+    GLOBAL_HARD_GATE_BLOCKED,
+    _RUNTIME_HARNESS_STOPPED,
+) = lib.REASON_CODES
+
 
 def load_identities(harness_dir: Path) -> dict[str, Any]:
-    value = json.loads((harness_dir / "model-identities.json").read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError("model-identities.json must be an object")
-    return value
+    return lib.read_json(harness_dir / "model-identities.json")
 
 
 def _inspect_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:
@@ -82,7 +93,7 @@ def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], mo
 
 def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]:
     if claude_result.get("status") != "pass" or opencode_result.get("status") != "pass":
-        return {"aligned": False, "canonical_identity": None, "reason_code": "global_hard_gate_blocked"}
+        return {"aligned": False, "canonical_identity": None, "reason_code": GLOBAL_HARD_GATE_BLOCKED}
     claude_identity = claude_result.get("canonical_identity")
     opencode_identity = opencode_result.get("canonical_identity")
     if isinstance(claude_identity, str) and claude_identity == opencode_identity:
@@ -94,5 +105,5 @@ def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dic
         and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
     )
     if proofs_same_openai and (claude_result.get("allowlist_missing") or opencode_result.get("allowlist_missing")):
-        return {"aligned": False, "canonical_identity": None, "reason_code": "global_hard_gate_blocked"}
-    return {"aligned": False, "canonical_identity": None, "reason_code": "model_alignment_blocked"}
+        return {"aligned": False, "canonical_identity": None, "reason_code": GLOBAL_HARD_GATE_BLOCKED}
+    return {"aligned": False, "canonical_identity": None, "reason_code": MODEL_ALIGNMENT_BLOCKED}
