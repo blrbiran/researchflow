@@ -3,11 +3,12 @@
 > Updated: 2026-07-18
 > Expected agent cwd: the ResearchFlow repository root (`reference/researchflow/` from the parent; `.` inside this document)
 > Remote: `git@github.com:blrbiran/researchflow.git`
-> Design checkout branch: `docs/live-harness-acceptance-design`
-> Snapshot baseline before this cwd/topology update: `19b199c` (run `git rev-parse --short HEAD` for the live branch tip)
-> Active implementation branch: `main`
-> Active implementation worktree from this cwd: `.worktrees/live-harness-acceptance/`
-> Active implementation HEAD: `007f882`
+> Historical design checkout branch: `docs/live-harness-acceptance-design`
+> Repository-root branch: `main`
+> Repository-root HEAD: `964d14d`
+> Preserved implementation worktree from this cwd: `.worktrees/live-harness-acceptance/`
+> Preserved implementation branch: `main-preserved`
+> Preserved implementation HEAD: `2d71788`
 
 ## 1. Purpose and settled decisions
 
@@ -48,8 +49,8 @@ Future agents start with this ResearchFlow repository root as their cwd. From th
 ResearchFlow is an intentional submodule of the parent `ccmem_paper` repository:
 
 - parent `.gitmodules` registers `reference/researchflow` with branch `main`;
-- parent gitlink currently points to `1878a9d`;
-- this design checkout is ahead of that gitlink, so the parent reports the submodule as modified until the gitlink is intentionally updated;
+- parent gitlink currently points to `964d14d`, matching the repo-root checkout on `main`;
+- the parent only reports the submodule as modified when the ResearchFlow working tree itself is dirty;
 - do not stage or commit unrelated parent-repo changes while working in ResearchFlow.
 
 The `.git` entry in this cwd is intentionally a submodule pointer:
@@ -75,24 +76,26 @@ Registered worktrees currently live in three groups:
 
 1. harness worktrees under the Git common-dir `.git/modules/reference/researchflow/.claude/worktrees/agent-*`;
 2. older repo-local harness worktrees under `.claude/worktrees/agent-*`;
-3. the intentional feature worktree under `.worktrees/live-harness-acceptance/`.
+3. the preserved manual worktree under `.worktrees/live-harness-acceptance/`.
 
-Do **not** move existing harness-owned `agent-*` directories with filesystem `mv`. Their paths are registered in Git administrative records and may also be owned by current or previous Claude sessions. If a move is ever required, first preserve dirty work, then use `git worktree move <old> <new>` from this cwd, one clean/unlocked worktree at a time, and verify `git worktree list --porcelain` after each move. No move is needed for the current handoff.
+Do **not** move existing harness-owned `agent-*` directories with filesystem `mv`. Their paths are registered in Git administrative records and may also be owned by current or previous Claude sessions. If a move is ever required, first preserve dirty work, then use `git worktree move <old> <new>` from this cwd, one clean/unlocked worktree at a time, and verify `git worktree list --porcelain` after each move.
 
 For new manually managed feature worktrees, use the ignored cwd-local `.worktrees/<feature>/` directory. This provides a discoverable cwd-relative location without relocating the standard submodule common-dir or harness-managed worktrees.
 
-Snapshot inventory:
+Current inventory snapshot:
 
-- Git common-dir including worktree metadata: about 9 MB;
-- common-dir `.claude/worktrees`: 15 worktrees, about 6 MB;
-- repo-local `.claude/worktrees`: 13 worktrees, about 3.7 MB;
-- cwd-local `.worktrees`: one feature worktree, about 1 MB.
+- Git common-dir `agent-*` worktrees: 14 registered;
+- repo-local `.claude/worktrees/agent-*` directories: 13 present;
+- cwd-local `.worktrees`: one preserved worktree.
 
-Do not delete, prune, relocate, or clean these worktrees without explicit user approval. Current notable worktree state:
+Current notable worktree state:
 
-- repo-local `agent-a7e704d91a6ea7c24` still contains a historical uncommitted `tests/claude-code/run-tests.sh` change already represented by commit `b3adc46`; it remains dirty and must not be silently discarded.
-- common-dir `agent-a3d082809313796c3` was the original Task 4 source worktree. Its useful commits are now merged to `main`, but the worktree itself still exists locally with untracked `.omc/` and `tests/harness-acceptance/__pycache__/` because automated deletion was blocked by the harness permission policy in this session.
-- repo-local `agent-abee9411bb8fc2bd2` is a stopped review-fix worktree created by an accidental reviewer dispatch. It contains only untracked `.omc/`; the user requested deletion, but automated removal was also blocked by the harness permission policy in this session.
+- repo-local `agent-a7e704d91a6ea7c24` still contains a historical tracked modification to `tests/claude-code/run-tests.sh` plus local `.omc/`; it must not be silently discarded;
+- many remaining harness-owned worktrees are session residue with only untracked `.omc/`;
+- some harness-owned worktrees also contain untracked `.superpowers/` or `__pycache__/` artifacts;
+- the previously discussed Task 4 source worktree `agent-a3d082809313796c3` and accidental review worktree `agent-abee9411bb8fc2bd2` have already been manually removed.
+
+Treat any additional cleanup as destructive shared-state work: review exact paths and dirty state before removal.
 
 ### 2.4 Local reference-library symlinks
 
@@ -108,19 +111,22 @@ reference/superpowers -> ../../superpowers
 
 All five links currently resolve to the corresponding parent `ccmem_paper/reference/*` directories. They are local research inputs, not runtime dependencies. Do not force-add, rewrite, or delete them without an explicit decision. Because the targets are relative, they remain valid while this repository stays at `ccmem_paper/reference/researchflow`; a standalone clone elsewhere must recreate or replace them.
 
-### 2.5 Design checkout
+### 2.5 Historical design checkout
 
-The repository-root checkout is the design/handover checkout:
+The original live-harness design/handover work happened on `docs/live-harness-acceptance-design`, but the repository-root checkout is no longer on that branch.
 
-- branch: `docs/live-harness-acceptance-design`;
-- snapshot before this cwd/topology update: `19b199c docs: clarify handover commit provenance`;
-- upstream: `origin/docs/live-harness-acceptance-design`;
-- run `git status --short --branch` and `git rev-parse --short HEAD` for live state;
-- `.gitignore` covers OpenWolf/session artifacts, Python caches, worktrees, and local `reference/` links.
+Current repo-root state:
 
-### 2.6 Active implementation worktree
+- branch: `main`;
+- HEAD: `964d14d update gitignore`;
+- upstream: `origin/main`;
+- `main` currently matches `origin/main`.
 
-Current preserved implementation workspace:
+Use the historical design branch only when you specifically need to inspect the earlier design-only checkout state.
+
+### 2.6 Active implementation workspace
+
+Current preserved local workspace:
 
 ```text
 .worktrees/live-harness-acceptance/
@@ -128,18 +134,16 @@ Current preserved implementation workspace:
 
 Current state:
 
-- branch: `main`;
-- HEAD: `007f882 fix: harden native harness capability probes`;
-- `main` in this preserved worktree is ahead of `origin/main` by the merged live-harness acceptance stack and has not been pushed;
-- tracked implementation tree is clean;
+- branch: `main-preserved`;
+- HEAD: `2d71788 docs: refresh handover after task 4 merge`;
 - remaining untracked local artifacts are `.omc/` session state and `tests/harness-acceptance/__pycache__/`; leave both untouched unless the user explicitly requests cleanup;
 - `.superpowers/` is intentionally ignored so SDD briefs, reports, review packages, and the progress ledger remain local.
 
-Do not implement in the design checkout. Future implementation should start from `main` at `007f882`, preferably in a fresh clean worktree/environment rather than reusing stopped agent worktrees.
+This preserved worktree is now a convenience local checkout, not the canonical branch tip. Future implementation should start from repo-root `main` at `964d14d` (or a fresh worktree branched from it), not from `main-preserved` unless there is a specific reason to preserve its local state.
 
 ## 3. Completed thin-router delivery
 
-The thin-router work is complete and already part of the design branch ancestry.
+The thin-router work is complete and already part of `main` ancestry.
 
 Key commits:
 
@@ -162,7 +166,7 @@ Do not reopen or modify router behavior as part of the live-harness acceptance w
 
 ## 4. Live-harness acceptance design and plan
 
-The approved design and implementation plan are committed on the design branch:
+The approved design and implementation plan remain:
 
 - Design: `docs/superpowers/specs/2026-07-17-live-harness-acceptance-design.md`
 - Plan: `docs/superpowers/plans/2026-07-17-live-harness-acceptance.md`
@@ -248,22 +252,6 @@ The selected isolation profile ID must match capability, preflight, and invocati
 
 ## 5. Implementation progress
 
-SDD progress ledger:
-
-```text
-.worktrees/live-harness-acceptance/.superpowers/sdd/progress.md
-```
-
-Current ledger before the Task 4 merge was:
-
-```text
-Task 1: complete (commits 1878a9d..cbce609, review clean)
-Task 2: complete (commits cbce609..2173bd4, review clean)
-Task 3: complete (commits 2173bd4..4dc9ff9, review clean)
-```
-
-Task 4 was then developed on a separate branch/worktree and later merged to `main` without a final clean-environment review closeout.
-
 ### 5.1 Task 1 — shared contracts — complete
 
 Implementation commits:
@@ -284,7 +272,7 @@ Review result: clean after fixes.
 
 ### 5.2 Task 2 — deterministic judge — complete
 
-Implementation commits on active branch:
+Implementation commits:
 
 - `de71099` — deterministic routing verdict judge and synthetic fixtures
 - `2173bd4` — fail closed when a blocked tool audit is incomplete
@@ -325,12 +313,12 @@ Review result: clean after fixes.
 
 ### 5.4 Task 4 — capability probes and native adapters — merged to `main`, but still requires a clean-environment review pass
 
-Task 4 implementation commits are now part of `main` at `007f882`:
+Task 4 implementation commits are now in `main` ancestry:
 
 - `6a9a451` — `test: add native harness capability adapters`
 - `007f882` — `fix: harden native harness capability probes`
 
-Delivered files now committed on `main` include:
+Delivered files committed through those Task 4 changes include:
 
 - `tests/harness-acceptance/capabilities.py`
 - `tests/harness-acceptance/adapters/claude.sh`
@@ -342,23 +330,15 @@ Delivered files now committed on `main` include:
 
 What is verified:
 
-- Task 4 synthetic unit coverage is green on the merged `main` worktree: **49 passed, 0 failed** across the full `tests/harness-acceptance/test_*.py` suite.
-- `./tests/run-all.sh` also passes on the preserved `.worktrees/live-harness-acceptance/` worktree after merging Task 4 into `main`.
-- No real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during Task 4 implementation.
+- the preserved worktree `main-preserved @ 2d71788` passed the full `tests/harness-acceptance/test_*.py` synthetic suite on 2026-07-18 (**49 passed, 0 failed**);
+- the repo-root `main @ 964d14d` passed `./tests/run-all.sh` on 2026-07-18;
+- no real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during Task 4 implementation.
 
 Important caveat for the next agent:
 
-- During task-scoped review, follow-up review findings were identified around real-environment confidence: scored-suffix composition, native JSON event-shape normalization, Claude fresh-workspace isolation, evidence-derived capability booleans, and separation between production config and test-only fixture wiring.
-- Those findings were dispatched into a second fix loop, but that background agent was later stopped by the user before a reviewed follow-up commit landed.
-- Therefore, treat Task 4 as **merged but not conclusively review-closed for real-environment acceptance confidence**. Do not revert it blindly; instead, continue from `main` in a fresh clean environment and re-review/fix Task 4 before starting Task 5.
-
-Historical worktree note:
-
-- the original Task 4 source worktree was `branch: task4-live-harness-adapters-a3d082809313796c3`, `worktree: .git/modules/reference/researchflow/.claude/worktrees/agent-a3d082809313796c3`, `base: 4dc9ff9`;
-- its useful commits are now merged to `main`;
-- local cleanup of that worktree was requested, but automated deletion in this session was blocked by the harness permission policy.
-
-Recommended continuation: start from `main` at `007f882` in a fresh clean worktree, rerun Task 4 review against real adapter contracts, land any remaining Task 4 fixes on a new branch, then proceed to Task 5.
+- task-scoped review found open real-environment confidence questions around scored-suffix composition, native JSON event-shape normalization, Claude fresh-workspace isolation, evidence-derived capability booleans, and separation between production config and test-only fixture wiring;
+- a follow-up review-fix loop was started, but the background agent was stopped before a reviewed follow-up commit landed;
+- therefore, treat Task 4 as **merged but not conclusively review-closed for real-environment acceptance confidence**. Do not revert it blindly; continue from `main` in a fresh clean environment and re-review/fix Task 4 before starting Task 5.
 
 ### 5.5 Tasks 5–7 — not started
 
@@ -370,7 +350,22 @@ No real Claude Code, OpenCode, LiteLLM, network, or paid model invocation has be
 
 ## 6. Current test status
 
-Verified in the preserved `.worktrees/live-harness-acceptance/` worktree on 2026-07-18 after merging Task 4 into `main` at `007f882`:
+Most recent local verification:
+
+### Repo-root `main @ 964d14d`
+
+```bash
+./tests/run-all.sh
+```
+
+Result on 2026-07-18:
+
+- OpenCode bootstrap smoke test: passed
+- Claude metadata/file smoke coverage plus repo-local routing-doc smoke coverage: passed
+- all three workflow demo contract tests: passed
+- unified result: `All ResearchFlow tests passed.`
+
+### Preserved worktree `main-preserved @ 2d71788`
 
 ```bash
 cd .worktrees/live-harness-acceptance
@@ -378,13 +373,10 @@ python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v
 ./tests/run-all.sh
 ```
 
-Results:
+Result on 2026-07-18:
 
 - harness acceptance synthetic tests: **49 passed**
-- OpenCode bootstrap smoke test: passed
-- Claude metadata/file smoke coverage plus repo-local routing-doc smoke coverage: passed
-- all three workflow demo contract tests: passed
-- unified result: `All ResearchFlow tests passed.`
+- unified smoke/test runner: passed
 
 Safe tool versions observed without exposing configuration values:
 
@@ -394,11 +386,11 @@ Safe tool versions observed without exposing configuration values:
 
 ## 7. Exact next step for the next agent
 
-Resume from **Task 4 review closure on top of `main` at `007f882`**; do not start Task 5 yet.
+Resume from repo-root `main @ 964d14d`; do not start Task 5 yet.
 
 Recommended procedure from this cwd:
 
-1. Start from a fresh clean worktree/environment based on `main` rather than reusing stopped agent worktrees.
+1. Start from a fresh clean worktree or fresh environment based on `main` rather than reusing stopped harness worktrees.
 2. Read the approved design and plan:
 
    ```text
@@ -423,10 +415,7 @@ Recommended procedure from this cwd:
 5. Only after Task 4 is review-closed in the fresh environment should work continue to Task 5 synthetic preflight/orchestration.
 
 6. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
-
 7. Do not invoke real `claude`, `opencode`, LiteLLM, network services, or models until the plan explicitly reaches the real preflight/run stages.
-
-8. If local cleanup of the stopped Task 4 source/review worktrees is still desired, it may require a manual user-run `git worktree remove` outside the current harness permission policy.
 
 ## 8. Remaining implementation order and stop conditions
 
@@ -459,8 +448,8 @@ Hard stops:
 - Release version remains `0.1.0`.
 - No release candidate, version bump, publish, or push is authorized by this work.
 - Cross-artifact semantic checks and contract-schema centralization remain separate future work.
-- Automated deletion of the stopped worktrees requested by the user was blocked by the harness permission policy in this session; the preserved `.worktrees/live-harness-acceptance/` worktree remains the safe local base.
-- repo-local `agent-a7e704d91a6ea7c24` still carries a historical dirty `tests/claude-code/run-tests.sh` change and must not be silently discarded.
+- repo-local `agent-a7e704d91a6ea7c24` still carries a historical dirty tracked change and must not be silently discarded.
+- Many remaining harness worktrees appear to be session residue with only `.omc/` or other untracked local artifacts; clean them only with explicit per-path review and user approval.
 
 ## 10. Safety and workflow reminders
 
@@ -475,30 +464,4 @@ Hard stops:
 - Do not modify the thin router or workflow contracts during acceptance implementation.
 - Do not push without explicit user approval.
 - Before reporting completion, run task review and then whole-branch review as required by subagent-driven development.
-- When resuming after cleanup, prefer a new branch from `main` over reviving stopped agent worktrees whose deletion was interrupted.
-
-
-## 9. Known limitations and unresolved work
-
-- Claude Code still has no saved real fresh-session routing transcript.
-- OpenCode still has no saved external real-session acceptance transcript.
-- Capability probes and native adapters are not committed or reviewed yet; an uncommitted Task 4 draft exists in common-dir worktree `agent-a3d082809313796c3`.
-- No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists.
-- No live acceptance result exists; do not claim acceptance, stability, or release readiness.
-- Release version remains `0.1.0`.
-- No release candidate, version bump, publish, or push is authorized by this work.
-- Cross-artifact semantic checks and contract-schema centralization remain separate future work.
-
-## 10. Safety and workflow reminders
-
-- Future agents should treat this repository root as cwd; use cwd-relative paths and direct Git commands.
-- Do not commit unrelated parent-repo changes.
-- The cwd-local `reference/` symlinks are ignored local research inputs; do not force-add, rewrite, or delete them.
-- Keep the standard submodule Git common-dir at the parent `.git/modules/reference/researchflow`; do not manually relocate it.
-- New manual worktrees belong under `.worktrees/`; existing harness-owned `.claude/worktrees/agent-*` stay registered where Git/Claude created them.
-- Do not stage any worktree's `.omc/` directory.
-- Do not log or commit `base_url`, API keys, auth headers, proxy credentials, raw environment variables, or user-home paths.
-- Keep raw event streams in ignored local storage; committed evidence contains only redacted normalized artifacts and hashes.
-- Do not modify the thin router or workflow contracts during acceptance implementation.
-- Do not push without explicit user approval.
-- Before reporting completion, run task review and then whole-branch review as required by subagent-driven development.
+- When resuming after cleanup, prefer a new branch from `main` over reviving stopped harness worktrees whose deletion was interrupted.
