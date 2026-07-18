@@ -218,6 +218,39 @@ class RunTest(unittest.TestCase):
         self.assertIn("2026-07-18T130000Z", hydrated["raw_dir"])
         self.assertEqual(hydrated["endpoint_identity"], "https://redacted.invalid/v1")
 
+    def test_build_baseline_record_uses_configured_repo_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            harness_dir = repo_root / "tests" / "harness-acceptance"
+            harness_dir.mkdir(parents=True, exist_ok=True)
+            cases_path = harness_dir / "cases.json"
+            prompt_path = harness_dir / "scored-prompt.txt"
+            cases_path.write_text("custom-cases\n", encoding="utf-8")
+            prompt_path.write_text("custom-prompt\n", encoding="utf-8")
+            config = self.make_config()
+            config["repo_root"] = str(repo_root)
+            evaluations = {
+                "claude": {
+                    "plugin_source_id": config["plugin_source_id"],
+                    "plugin_proof_strength": "best_available_source_plus_canary",
+                    "isolation_profile": "auth-preserving-direct-plugin-dir",
+                    "canonical_identity": "openai/synthetic-model",
+                },
+                "opencode": {
+                    "plugin_source_id": config["plugin_source_id"],
+                    "plugin_proof_strength": "resolved_runtime_source_inventory_canary",
+                    "isolation_profile": "workspace-config-runtime-proof",
+                    "canonical_identity": "openai/synthetic-model",
+                },
+            }
+            model_proofs = {
+                "claude": {"proof_sha256": "a" * 64, "endpoint_identity_sha256": "b" * 64},
+                "opencode": {"proof_sha256": "c" * 64, "endpoint_identity_sha256": "d" * 64},
+            }
+            baseline = self.run_module.build_baseline_record(repo_root, config, evaluations, model_proofs)
+            self.assertEqual(baseline["cases_sha256"], self.lib.sha256_path(cases_path))
+            self.assertEqual(baseline["scored_prompt_sha256"], self.lib.sha256_path(prompt_path))
+
     def test_scored_requires_aligned_baseline_and_runs_cases_in_fixed_order(self):
         case_calls: list[tuple[str, str]] = []
         self.install_fake_adapter(case_calls=case_calls)
@@ -245,6 +278,12 @@ class RunTest(unittest.TestCase):
             changed_bin["claude"]["cli_bin"] = "/bin/false"
             with self.assertRaisesRegex(ValueError, "baseline"):
                 self.run_module.run_original(changed_bin, "2026-07-18T124500Z", "scored")
+            blocked = copy.deepcopy(self.base_preflight["claude"])
+            blocked["status"] = "blocked"
+            write_json(run_dir / "preflight" / "claude.json", blocked)
+            with self.assertRaisesRegex(ValueError, "preflight"):
+                self.run_module.run_original(config, "2026-07-18T124500Z", "scored")
+            write_json(run_dir / "preflight" / "claude.json", copy.deepcopy(self.base_preflight["claude"]))
             case_dir = run_dir / "claude" / self.case_ids[0]
             case_dir.mkdir(parents=True, exist_ok=True)
             with self.assertRaisesRegex(ValueError, "existing case artifact"):

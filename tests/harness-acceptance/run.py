@@ -28,9 +28,10 @@ DEFAULT_ENDPOINT_IDENTITY = "https://redacted.invalid/v1"
 DEFAULT_CLI_BINS = {"claude": "claude", "opencode": "opencode"}
 
 
-def _repo_commit_sha() -> str:
+def _repo_commit_sha(repo_root: Path | None = None) -> str:
+    target_root = repo_root or ROOT
     return subprocess.run(
-        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        ["git", "-C", str(target_root), "rev-parse", "HEAD"],
         check=True,
         capture_output=True,
         text=True,
@@ -219,7 +220,9 @@ def _write_runtime_harness_error(
 def hydrate_run_config(config: dict[str, Any], run_id: str | None = None) -> dict[str, Any]:
     hydrated = json.loads(json.dumps(config))
     hydrated.setdefault("repo_root", str(ROOT))
-    hydrated.setdefault("repo_commit_sha", _repo_commit_sha())
+    repo_root = Path(str(hydrated["repo_root"])).resolve()
+    hydrated["repo_root"] = str(repo_root)
+    hydrated.setdefault("repo_commit_sha", _repo_commit_sha(repo_root))
     hydrated.setdefault("endpoint_identity", DEFAULT_ENDPOINT_IDENTITY)
     hydrated.setdefault("plugin_source_id", DEFAULT_PLUGIN_SOURCE_ID)
     hydrated.setdefault("residual_categories", list(DEFAULT_RESIDUAL_CATEGORIES))
@@ -241,7 +244,8 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
     preflight_dir = run_dir / "preflight"
     capabilities_dir = run_dir / "capabilities"
     baseline_path = preflight_dir / "baseline.json"
-    cases = lib.load_cases(ROOT)
+    target_root = Path(str(config.get("repo_root", ROOT))).resolve()
+    cases = lib.load_cases(target_root)
     identities = preflight.load_identities(HARNESS_DIR)
 
     if mode == "preflight-only":
@@ -271,25 +275,31 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
             if alignment["aligned"]:
                 lib.write_json(
                     baseline_path,
-                    build_baseline_record(ROOT, config_with_run, evaluations, model_proofs),
+                    build_baseline_record(target_root, config_with_run, evaluations, model_proofs),
                 )
                 return run_dir
             _write_summary_outputs(run_dir, cases)
             return run_dir
 
         baseline = lib.read_json(baseline_path)
+        evaluations = {
+            harness: preflight.evaluate_preflight(
+                lib.read_json(capabilities_dir / f"{harness}.json"),
+                lib.read_json(preflight_dir / f"{harness}.json"),
+                lib.read_json(preflight_dir / f"{harness}-model-proof.json"),
+                identities,
+            )
+            for harness in HARNESSES
+        }
+        alignment = preflight.evaluate_model_alignment(evaluations["claude"], evaluations["opencode"])
+        if any(result["status"] != "pass" for result in evaluations.values()):
+            raise ValueError("scored phase requires passing preflight")
+        if not alignment["aligned"]:
+            raise ValueError("scored phase requires aligned preflight")
         expected_baseline = build_baseline_record(
-            ROOT,
+            target_root,
             config_with_run,
-            {
-                harness: preflight.evaluate_preflight(
-                    lib.read_json(capabilities_dir / f"{harness}.json"),
-                    lib.read_json(preflight_dir / f"{harness}.json"),
-                    lib.read_json(preflight_dir / f"{harness}-model-proof.json"),
-                    identities,
-                )
-                for harness in HARNESSES
-            },
+            evaluations,
             {harness: lib.read_json(preflight_dir / f"{harness}-model-proof.json") for harness in HARNESSES},
         )
         if baseline != expected_baseline:
