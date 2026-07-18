@@ -14,6 +14,7 @@
 - **Description:** ResearchFlow skills and runtime bootstrap for research and paper-writing agents
 - Reference-library layouts differ: `academic-research-skills` duplicates skills at root and `skills/`, while `gstack` keeps skill directories at repository root with no `skills/` directory. Follow symlinks with `find -L` when inventorying them.
 - For live-harness Task 4, reuse the existing dirty draft and preserve the thin-adapter boundary: shell captures native CLI evidence; Python owns parsing, normalization, validation, and fail-closed capability selection.
+- For Task 4 synthetic adapter tests, fixture scenario selection must stay out of production config JSON; tests inject fake scenario paths only through `FAKE_CLAUDE_SCENARIO_DIR` / `FAKE_OPENCODE_SCENARIO_DIR`.
 
 ## Do-Not-Repeat
 

@@ -64,29 +64,6 @@ else:
 PY
 }
 
-config_get_optional() {
-  "$PYTHON_BIN" - "$CONFIG" "$1" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-value = config
-try:
-    for part in sys.argv[2].split('.'):
-        value = value[part]
-except Exception:
-    print("")
-    raise SystemExit(0)
-if isinstance(value, bool):
-    print("true" if value else "false")
-elif value is None:
-    print("")
-else:
-    print(value)
-PY
-}
-
 case_prompt() {
   "$PYTHON_BIN" - "$HARNESS_DIR/cases.json" "$HARNESS_DIR/scored-prompt.txt" "$1" <<'PY'
 import json
@@ -228,7 +205,7 @@ RAW_ROOT="$(config_get raw_dir)"
 MODEL_VALUE="$(config_get claude.harness_model_value)"
 EFFORT_VALUE="$(config_get claude.effort_or_variant)"
 TIMEOUT_SECONDS="$(config_get timeout_seconds)"
-SCENARIO_DIR="$(config_get_optional claude.scenario_dir)"
+SCENARIO_DIR="${FAKE_CLAUDE_SCENARIO_DIR:-}"
 if [[ -x "$CLI_BIN" ]]; then
   CLI_CMD=("$CLI_BIN")
 else
