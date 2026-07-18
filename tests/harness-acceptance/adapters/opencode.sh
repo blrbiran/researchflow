@@ -88,16 +88,18 @@ PY
 }
 
 case_prompt() {
-  "$PYTHON_BIN" - "$HARNESS_DIR/cases.json" "$1" <<'PY'
+  "$PYTHON_BIN" - "$HARNESS_DIR/cases.json" "$HARNESS_DIR/scored-prompt.txt" "$1" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 cases = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-case_id = sys.argv[2]
+suffix = Path(sys.argv[2]).read_text(encoding="utf-8").rstrip()
+case_id = sys.argv[3]
 for item in cases:
     if item.get("case_id") == case_id:
-        print(item["prompt"])
+        prompt = item["prompt"].rstrip()
+        sys.stdout.write(f"{prompt}\n\n{suffix}\n")
         break
 else:
     raise SystemExit(f"unknown case_id: {case_id}")
@@ -304,7 +306,8 @@ case "$MODE" in
       exit 1
     fi
     CASE_RAW_DIR="$(mktemp -d "$RAW_ROOT/opencode-case-${CASE_ID}.XXXXXX")"
-    prompt="$(case_prompt "$CASE_ID")"
+    prompt="$(case_prompt "$CASE_ID"; printf '__RESEARCHFLOW_PROMPT_END__')"
+    prompt="${prompt%__RESEARCHFLOW_PROMPT_END__}"
     run_case_command "$prompt" "$CASE_RAW_DIR/events.jsonl" "$CASE_RAW_DIR/stderr.txt" "$CASE_RAW_DIR/status.txt" "$CASE_RAW_DIR/workspace"
     "$PYTHON_BIN" "$HARNESS_DIR/capabilities.py" normalize-case \
       --harness opencode \

@@ -88,16 +88,18 @@ PY
 }
 
 case_prompt() {
-  "$PYTHON_BIN" - "$HARNESS_DIR/cases.json" "$1" <<'PY'
+  "$PYTHON_BIN" - "$HARNESS_DIR/cases.json" "$HARNESS_DIR/scored-prompt.txt" "$1" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 cases = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-case_id = sys.argv[2]
+suffix = Path(sys.argv[2]).read_text(encoding="utf-8").rstrip()
+case_id = sys.argv[3]
 for item in cases:
     if item.get("case_id") == case_id:
-        print(item["prompt"])
+        prompt = item["prompt"].rstrip()
+        sys.stdout.write(f"{prompt}\n\n{suffix}\n")
         break
 else:
     raise SystemExit(f"unknown case_id: {case_id}")
@@ -111,7 +113,8 @@ run_capture() {
   shift 3
   local -a command=("${CLI_CMD[@]}" "$@")
   if [[ -n "$SCENARIO_DIR" ]]; then
-    FAKE_CLAUDE_SCENARIO_DIR="$SCENARIO_DIR" FAKE_REPO_ROOT="$REPO_ROOT" "$PYTHON_BIN" - "$stdout_path" "$stderr_path" "$status_path" "$TIMEOUT_SECONDS" "${command[@]}" <<'PY'
+    RUN_CWD="${RUN_CWD:-}" FAKE_CLAUDE_SCENARIO_DIR="$SCENARIO_DIR" FAKE_REPO_ROOT="$REPO_ROOT" "$PYTHON_BIN" - "$stdout_path" "$stderr_path" "$status_path" "$TIMEOUT_SECONDS" "${command[@]}" <<'PY'
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -126,8 +129,9 @@ stdout_path.parent.mkdir(parents=True, exist_ok=True)
 stderr_path.parent.mkdir(parents=True, exist_ok=True)
 status_path.parent.mkdir(parents=True, exist_ok=True)
 
+cwd = os.environ.get("RUN_CWD") or None
 try:
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout_seconds)
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout_seconds, cwd=cwd)
     stdout = completed.stdout or ""
     stderr = completed.stderr or ""
     status = completed.returncode
@@ -145,7 +149,8 @@ stderr_path.write_text(stderr, encoding="utf-8")
 status_path.write_text(f"{status}\n", encoding="utf-8")
 PY
   else
-    "$PYTHON_BIN" - "$stdout_path" "$stderr_path" "$status_path" "$TIMEOUT_SECONDS" "${command[@]}" <<'PY'
+    RUN_CWD="${RUN_CWD:-}" "$PYTHON_BIN" - "$stdout_path" "$stderr_path" "$status_path" "$TIMEOUT_SECONDS" "${command[@]}" <<'PY'
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -160,8 +165,9 @@ stdout_path.parent.mkdir(parents=True, exist_ok=True)
 stderr_path.parent.mkdir(parents=True, exist_ok=True)
 status_path.parent.mkdir(parents=True, exist_ok=True)
 
+cwd = os.environ.get("RUN_CWD") or None
 try:
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout_seconds)
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout_seconds, cwd=cwd)
     stdout = completed.stdout or ""
     stderr = completed.stderr or ""
     status = completed.returncode
@@ -280,6 +286,8 @@ run_case_command() {
   local stderr_path="$3"
   local status_path="$4"
   local profile="$5"
+  local workspace_dir="$6"
+  mkdir -p "$workspace_dir"
   local -a args=(-p "$prompt")
   if [[ "$profile" == "auth-preserving-direct-plugin-dir" || "$profile" == "full-direct-plugin-dir" ]]; then
     args+=(--plugin-dir "$REPO_ROOT")
@@ -294,7 +302,7 @@ run_case_command() {
     --model "$MODEL_VALUE"
     --effort "$EFFORT_VALUE"
   )
-  run_capture "$stdout_path" "$stderr_path" "$status_path" "${args[@]}"
+  RUN_CWD="$workspace_dir" run_capture "$stdout_path" "$stderr_path" "$status_path" "${args[@]}"
 }
 
 run_probe
@@ -354,8 +362,9 @@ case "$MODE" in
       exit 1
     fi
     CASE_RAW_DIR="$(mktemp -d "$RAW_ROOT/claude-case-${CASE_ID}.XXXXXX")"
-    prompt="$(case_prompt "$CASE_ID")"
-    run_case_command "$prompt" "$CASE_RAW_DIR/events.jsonl" "$CASE_RAW_DIR/stderr.txt" "$CASE_RAW_DIR/status.txt" "$profile"
+    prompt="$(case_prompt "$CASE_ID"; printf '__RESEARCHFLOW_PROMPT_END__')"
+    prompt="${prompt%__RESEARCHFLOW_PROMPT_END__}"
+    run_case_command "$prompt" "$CASE_RAW_DIR/events.jsonl" "$CASE_RAW_DIR/stderr.txt" "$CASE_RAW_DIR/status.txt" "$profile" "$CASE_RAW_DIR/workspace"
     "$PYTHON_BIN" "$HARNESS_DIR/capabilities.py" normalize-case \
       --harness claude \
       --config "$CONFIG" \

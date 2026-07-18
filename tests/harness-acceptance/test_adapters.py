@@ -57,7 +57,7 @@ class AdapterTest(unittest.TestCase):
         output_dir = temp_root / "out"
         output_dir.mkdir(parents=True, exist_ok=True)
         effective_repo_root = repo_root or ROOT
-        effective_scenario_dir = scenario_dir or (ADAPTER_FIXTURE_DIR / scenario_name)
+        effective_scenario_dir = scenario_dir or self.clone_scenario(temp_root, scenario_name)
         config = {
             "run_id": "2026-07-17T120000Z",
             "repo_root": str(effective_repo_root),
@@ -192,6 +192,43 @@ class AdapterTest(unittest.TestCase):
             self.assertEqual(invocation["tool_execution"]["attempted_tools"], ["web_fetch"])
             self.assertEqual(invocation["tool_execution"]["side_effect_status"], "blocked")
             self.assertTrue(invocation["tool_execution"]["audit_complete"])
+
+    def test_case_mode_appends_shared_suffix_for_both_harnesses(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            case_prompt = next(
+                item["prompt"]
+                for item in read_json(HARNESS_DIR / "cases.json")
+                if item["case_id"] == "R-DIRECT-LIT"
+            )
+            scored_prompt = (HARNESS_DIR / "scored-prompt.txt").read_text(encoding="utf-8")
+            expected_prompt = f"{case_prompt}\n\n{scored_prompt}"
+
+            cases = [
+                ("claude", self.claude_adapter, "claude-direct"),
+                ("opencode", self.opencode_adapter, "opencode-strong"),
+            ]
+            for harness, script, scenario_name in cases:
+                scenario_dir = self.clone_scenario(temp_root / harness, scenario_name)
+                config_path = self.make_config(temp_root / harness, scenario_name, harness, scenario_dir=scenario_dir)
+                output_dir = temp_root / harness / "case"
+                result = self.run_adapter(script, "case", config_path, output_dir, case_id="R-DIRECT-LIT")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                captured_prompt = (scenario_dir / "last-prompt.txt").read_text(encoding="utf-8")
+                self.assertEqual(captured_prompt, expected_prompt)
+
+    def test_claude_case_mode_runs_in_fresh_workspace(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            scenario_dir = self.clone_scenario(temp_root, "claude-direct")
+            config_path = self.make_config(temp_root, "claude-direct", "claude", scenario_dir=scenario_dir)
+            output_dir = temp_root / "claude-case"
+            result = self.run_adapter(self.claude_adapter, "case", config_path, output_dir, case_id="R-DIRECT-LIT")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            cwd = Path((scenario_dir / "last-cwd.txt").read_text(encoding="utf-8").strip()).resolve()
+            raw_workspaces = list((temp_root / "raw").glob("claude-case-R-DIRECT-LIT.*/workspace"))
+            self.assertEqual(len(raw_workspaces), 1)
+            self.assertEqual(cwd, raw_workspaces[0].resolve())
 
     def test_case_mode_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -126,5 +126,7 @@ if [[ "$prompt" == *"RESEARCHFLOW_BOOTSTRAP_ACTIVE"* ]]; then
   exit "$(cat "$SCENARIO_DIR/marketplace.exit")"
 fi
 
+printf '%s' "$prompt" > "$SCENARIO_DIR/last-prompt.txt"
+printf '%s\n' "$PWD" > "$SCENARIO_DIR/last-cwd.txt"
 cat "$SCENARIO_DIR/cases/${CASE_ID}.jsonl"
 exit "$(cat "$SCENARIO_DIR/cases/${CASE_ID}.exit")"
