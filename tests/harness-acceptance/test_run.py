@@ -290,6 +290,7 @@ class RunTest(unittest.TestCase):
                 assert case_id is not None
                 case_calls.append((harness, case_id))
                 if harness == "claude" and case_id == self.case_ids[1]:
+                    (output_dir / "invocation.json").write_text("{}\n", encoding="utf-8")
                     raise RuntimeError("synthetic adapter stop")
                 observed_phase = next(case["expected_phase"] for case in self.lib.load_cases(ROOT) if case["case_id"] == case_id)
                 self.write_case_artifacts(output_dir, harness, case_id, observed_phase)
@@ -312,6 +313,11 @@ class RunTest(unittest.TestCase):
             self.assertEqual({row["reason_code"] for row in claude_rows[2:]}, {"runtime_harness_stopped"})
             self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["harness_error"], 1)
             self.assertEqual(summary["harnesses"]["claude"]["verdict_counts"]["unattempted"], 5)
+            repaired_invocation = json.loads(
+                (run_dir / "claude" / self.case_ids[1] / "invocation.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(repaired_invocation["harness"], "claude")
+            self.assertEqual(repaired_invocation["case_id"], self.case_ids[1])
             self.assertIn(("opencode", self.case_ids[0]), case_calls)
 
     def test_main_parses_cli_arguments_and_invokes_run_original(self):
