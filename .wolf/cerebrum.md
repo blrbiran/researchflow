@@ -7,6 +7,8 @@
 ## User Preferences
 
 <!-- How the user likes things done. Code style, tools, patterns, communication. -->
+- Keep active implementation worktrees inside the current repo checkout (for example `./.worktrees/` or `./.claude/worktrees/`), not under parent `.git/modules/.../.claude/worktrees/agent-*` paths.
+
 
 ## Key Learnings
 

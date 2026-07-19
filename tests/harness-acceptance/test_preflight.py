@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -21,6 +22,11 @@ def load_module(name: str, path: Path):
 
 def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_json(path: Path, value: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class PreflightTest(unittest.TestCase):
@@ -133,3 +139,92 @@ class PreflightTest(unittest.TestCase):
         mismatch = self.preflight.evaluate_model_alignment(claude, mismatched)
         self.assertFalse(mismatch["aligned"])
         self.assertEqual(mismatch["reason_code"], self.preflight.lib.REASON_CODES[2])
+
+    def test_determine_preflight_outcome_marks_allowlist_update_needed(self):
+        claude = {
+            "status": "pass",
+            "canonical_identity": None,
+            "proof_identity": "openai/gpt-5.5",
+            "proof_valid": True,
+            "allowlist_missing": True,
+        }
+        opencode = {
+            "status": "pass",
+            "canonical_identity": None,
+            "proof_identity": "openai/gpt-5.5",
+            "proof_valid": True,
+            "allowlist_missing": True,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "allowlist-update-needed")
+        self.assertEqual(result["reason_code"], "global_hard_gate_blocked")
+
+    def test_determine_preflight_outcome_marks_continuation_ready(self):
+        ready = {
+            "status": "pass",
+            "canonical_identity": "openai/synthetic-model",
+            "proof_identity": "openai/synthetic-model",
+            "proof_valid": True,
+            "allowlist_missing": False,
+        }
+        result = self.preflight.determine_preflight_outcome(ready, ready)
+        self.assertEqual(result["outcome"], "continuation-ready")
+        self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
+
+    def test_load_run_preflight_state_reports_continuation_ready(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_dir = Path(temp_dir)
+            harness_dir = run_dir / "harness"
+            (run_dir / "capabilities").mkdir()
+            (run_dir / "preflight").mkdir()
+            write_json(
+                harness_dir / "model-identities.json",
+                {
+                    "allowed_provider": "openai",
+                    "canonical_models": {"synthetic-model": "openai/synthetic-model"},
+                    "harness_aliases": {"fable": {"does_not_prove_backing_model": True, "may_route_via": "litellm"}},
+                },
+            )
+            write_json(run_dir / "capabilities" / "claude.json", self.capability["claude"])
+            write_json(run_dir / "capabilities" / "opencode.json", self.capability["opencode"])
+            write_json(run_dir / "preflight" / "claude.json", self.base_preflight["claude"])
+            write_json(run_dir / "preflight" / "opencode.json", self.base_preflight["opencode"])
+            claude_proof = copy.deepcopy(self.base_model_proof)
+            claude_proof["harness"] = "claude"
+            claude_proof["requested_route"] = "fable"
+            opencode_proof = copy.deepcopy(self.base_model_proof)
+            opencode_proof["harness"] = "opencode"
+            opencode_proof["requested_route"] = "openai/synthetic-model"
+            write_json(run_dir / "preflight" / "claude-model-proof.json", claude_proof)
+            write_json(run_dir / "preflight" / "opencode-model-proof.json", opencode_proof)
+            state = self.preflight.load_run_preflight_state(run_dir, harness_dir)
+            self.assertEqual(state["outcome"], "continuation-ready")
+            self.assertEqual(state["canonical_identity"], "openai/synthetic-model")
+
+    def test_require_continuation_ready_rejects_allowlist_update_needed(self):
+        state = {
+            "outcome": "allowlist-update-needed",
+            "reason_code": "global_hard_gate_blocked",
+            "canonical_identity": None,
+        }
+        with self.assertRaisesRegex(ValueError, "continuation-ready"):
+            self.preflight.require_continuation_ready(state)
+
+    def test_main_require_aligned_rejects_non_ready_run(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_dir = Path(temp_dir)
+            (run_dir / "capabilities").mkdir()
+            (run_dir / "preflight").mkdir()
+            write_json(run_dir / "capabilities" / "claude.json", self.capability["claude"])
+            write_json(run_dir / "capabilities" / "opencode.json", self.capability["opencode"])
+            write_json(run_dir / "preflight" / "claude.json", self.base_preflight["claude"])
+            write_json(run_dir / "preflight" / "opencode.json", self.base_preflight["opencode"])
+            for harness in ("claude", "opencode"):
+                model_proof = copy.deepcopy(self.base_model_proof)
+                model_proof["harness"] = harness
+                model_proof["backing_model_id"] = "gpt-5.5"
+                model_proof["resolved_model_identity"] = "openai/gpt-5.5"
+                model_proof["requested_route"] = "fable" if harness == "claude" else "openai/gpt-5.5"
+                write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
+            with self.assertRaisesRegex(ValueError, "continuation-ready"):
+                self.preflight.main(["--run-dir", str(run_dir), "--require-aligned"])

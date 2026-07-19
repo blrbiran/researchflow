@@ -293,6 +293,19 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual({row["reason_code"] for row in summary["accounting_rows"]}, {"global_hard_gate_blocked"})
         self.assertTrue(summary["model_alignment"]["blocked"])
 
+    def test_build_summary_marks_allowlist_update_needed_outcome(self):
+        run_dir = self.make_run_dir()
+        for harness in ("claude", "opencode"):
+            model_proof = copy.deepcopy(self.base_model_proof)
+            model_proof["harness"] = harness
+            model_proof["backing_model_id"] = "gpt-5.5"
+            model_proof["resolved_model_identity"] = "openai/gpt-5.5"
+            model_proof["requested_route"] = "fable" if harness == "claude" else "openai/gpt-5.5"
+            write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        self.assertEqual(summary["outcome"], "allowlist-update-needed")
+        self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
+
     def test_build_summary_runtime_stop_marks_remaining_rows(self):
         self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
         run_dir = self.make_run_dir()

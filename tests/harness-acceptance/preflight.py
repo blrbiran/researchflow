@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
+import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
@@ -89,3 +91,74 @@ def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dic
     if proofs_same_openai and (claude_result.get("allowlist_missing") or opencode_result.get("allowlist_missing")):
         return {"aligned": False, "canonical_identity": None, "reason_code": GLOBAL_HARD_GATE_BLOCKED}
     return {"aligned": False, "canonical_identity": None, "reason_code": MODEL_ALIGNMENT_BLOCKED}
+
+
+def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]:
+    alignment = evaluate_model_alignment(claude_result, opencode_result)
+    if (
+        alignment["reason_code"] == "global_hard_gate_blocked"
+        and claude_result.get("proof_valid")
+        and opencode_result.get("proof_valid")
+        and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
+        and (claude_result.get("allowlist_missing") or opencode_result.get("allowlist_missing"))
+    ):
+        return {
+            "outcome": "allowlist-update-needed",
+            "reason_code": "global_hard_gate_blocked",
+            "canonical_identity": None,
+        }
+    if claude_result.get("status") != "pass" or opencode_result.get("status") != "pass":
+        return {
+            "outcome": "blocked",
+            "reason_code": alignment["reason_code"] or "global_hard_gate_blocked",
+            "canonical_identity": None,
+        }
+    if alignment["aligned"]:
+        return {
+            "outcome": "continuation-ready",
+            "reason_code": None,
+            "canonical_identity": alignment["canonical_identity"],
+        }
+    return {
+        "outcome": "blocked",
+        "reason_code": alignment["reason_code"] or "model_alignment_blocked",
+        "canonical_identity": None,
+    }
+
+
+def load_run_preflight_state(run_dir: Path, harness_dir: Path) -> dict[str, Any]:
+    identities = load_identities(harness_dir)
+    evaluations = {}
+    for harness in ("claude", "opencode"):
+        capability = lib.read_json(run_dir / "capabilities" / f"{harness}.json")
+        preflight_record = lib.read_json(run_dir / "preflight" / f"{harness}.json")
+        model_proof = lib.read_json(run_dir / "preflight" / f"{harness}-model-proof.json")
+        evaluations[harness] = evaluate_preflight(capability, preflight_record, model_proof, identities)
+    outcome = determine_preflight_outcome(evaluations["claude"], evaluations["opencode"])
+    return {
+        "outcome": outcome["outcome"],
+        "reason_code": outcome["reason_code"],
+        "canonical_identity": outcome["canonical_identity"],
+        "harnesses": evaluations,
+    }
+
+
+def require_continuation_ready(state: dict[str, Any]) -> None:
+    if state.get("outcome") != "continuation-ready":
+        raise ValueError(f"run is not continuation-ready: {state.get('outcome')}")
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-dir", required=True)
+    parser.add_argument("--require-aligned", action="store_true")
+    args = parser.parse_args(argv)
+    state = load_run_preflight_state(Path(args.run_dir), HERE)
+    if args.require_aligned:
+        require_continuation_ready(state)
+    print(json.dumps(state, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

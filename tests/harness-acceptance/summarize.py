@@ -279,9 +279,15 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
     progress_made = any(attempted[harness] for harness in HARNESSES)
 
     preflight_statuses = {harness: states[harness]["preflight_status"] for harness in HARNESSES}
+    outcome = None
     if any(status != "pass" for status in preflight_statuses.values()):
         if progress_made:
             raise ValueError("attempted case artifacts are not allowed when any preflight is blocked")
+        derived = preflight_contract.determine_preflight_outcome(
+            states["claude"]["evaluated_preflight"],
+            states["opencode"]["evaluated_preflight"],
+        )
+        outcome = derived["outcome"]
         accounting_rows: list[dict[str, Any]] = []
         for harness in HARNESSES:
             reason_code = f"{harness}_preflight_blocked" if preflight_statuses[harness] == "blocked" else "global_hard_gate_blocked"
@@ -298,6 +304,11 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         if not aligned:
             if progress_made:
                 raise ValueError("attempted case artifacts are not allowed when model alignment is blocked")
+            derived = preflight_contract.determine_preflight_outcome(
+                states["claude"]["evaluated_preflight"],
+                states["opencode"]["evaluated_preflight"],
+            )
+            outcome = derived["outcome"]
             if alignment_reason not in REASON_CODES:
                 raise ValueError(f"unknown alignment reason: {alignment_reason}")
             accounting_rows = [
@@ -390,6 +401,7 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         "run_kind": environment["run_kind"],
         "case_count_per_harness": CASES_PER_HARNESS,
         "cross_harness_model_confound": not aligned,
+        "outcome": outcome,
         "model_alignment": {
             "required": True,
             "aligned": aligned,
