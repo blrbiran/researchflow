@@ -87,7 +87,7 @@
     }
   ],
   "case_count_per_harness": 7,
-  "cross_harness_model_confound": true,
+  "cross_harness_model_confound": false,
   "deviations": [],
   "evidence_links": {
     "capabilities": {

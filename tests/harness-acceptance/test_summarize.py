@@ -281,6 +281,16 @@ class SummarizeTest(unittest.TestCase):
         self.assertTrue(summary["cross_harness_model_confound"])
         self.assertTrue(summary["model_alignment"]["blocked"])
 
+    def test_build_summary_preflight_block_does_not_claim_cross_harness_model_confound(self):
+        run_dir = self.make_run_dir()
+        blocked_preflight = copy.deepcopy(self.base_preflights["opencode"])
+        blocked_preflight["status"] = "blocked"
+        write_json(run_dir / "preflight" / "opencode.json", blocked_preflight)
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        self.assertFalse(summary["cross_harness_model_confound"])
+        self.assertTrue(summary["model_alignment"]["blocked"])
+        self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[3])
+
     def test_build_summary_missing_allowlist_uses_global_hard_gate_block(self):
         run_dir = self.make_run_dir()
         for harness in ("claude", "opencode"):

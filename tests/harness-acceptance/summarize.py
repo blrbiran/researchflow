@@ -401,11 +401,14 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         and contamination_total == 0
         and environment["redaction_passed"]
     )
+    cross_harness_model_confound = False
+    if not aligned:
+        cross_harness_model_confound = (reason_code or alignment_reason) == "model_alignment_blocked"
     return {
         "run_id": environment["run_id"],
         "run_kind": environment["run_kind"],
         "case_count_per_harness": CASES_PER_HARNESS,
-        "cross_harness_model_confound": not aligned,
+        "cross_harness_model_confound": cross_harness_model_confound,
         "outcome": outcome,
         "reason_code": reason_code,
         "model_alignment": {
