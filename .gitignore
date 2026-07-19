@@ -13,9 +13,11 @@
 
 reference/academic-research-skills
 reference/ECC
-reference/Supervisor-Skills
-reference/superpowers
 reference/gstack
+reference/oh-my-openagent
+reference/opencode
+reference/superpowers
+reference/Supervisor-Skills
 
 .worktrees/
 .claude/worktrees/
