@@ -399,6 +399,49 @@ class AdapterTest(unittest.TestCase):
             self.assertIsNone(opencode_capability["selected_proof_branch"])
             self.assertIsNone(opencode_capability["selected_isolation_profile"])
 
+    def test_opencode_adapter_uses_path_resolved_binary_without_bash_wrapper(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            shim_dir = temp_root / "bin"
+            shim_dir.mkdir(parents=True, exist_ok=True)
+            shim = shim_dir / "opencode"
+            shim.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "if [[ \"${1:-}\" == \"--version\" ]]; then\n"
+                "  printf 'OpenCode 1.17.15\\n'\n"
+                "elif [[ \"${1:-}\" == \"debug\" ]]; then\n"
+                "  printf '{\"plugin_path\":\"%s\"}\\n' \"$FAKE_REPO_ROOT\"\n"
+                "elif [[ \"${1:-}\" == \"run\" ]]; then\n"
+                "  printf '{\"type\":\"result\",\"result\":\"RESEARCHFLOW_BOOTSTRAP_ACTIVE\",\"modelUsage\":{\"gpt-5.4[1M]\":{\"inputTokens\":1}}}\\n'\n"
+                "else\n"
+                "  exit 2\n"
+                "fi\n",
+                encoding="utf-8",
+            )
+            shim.chmod(0o755)
+            config_path = self.make_config(temp_root, "opencode-strong", "opencode")
+            payload = read_json(config_path)
+            payload["repo_root"] = str(ROOT)
+            payload["opencode"]["cli_bin"] = "opencode"
+            config_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            output_dir = temp_root / "capabilities"
+            env_path = os.environ.get("PATH", "")
+            result = subprocess.run(
+                ["bash", str(self.opencode_adapter), "--mode", "capability", "--config", str(config_path), "--output-dir", str(output_dir)],
+                capture_output=True,
+                text=True,
+                env={
+                    **os.environ,
+                    "ECC_GATEGUARD": "off",
+                    "PATH": f"{shim_dir}:{env_path}",
+                    "FAKE_REPO_ROOT": str(ROOT),
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            capability = read_json(output_dir / "opencode.json")
+            self.assertEqual(capability["cli_version"], "1.17.15")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -177,11 +177,15 @@ class CapabilitiesTest(unittest.TestCase):
 
         missing_workspace_validation = clone_json(self.fixtures["opencode_strong"])
         missing_workspace_validation["probe_results"]["repo_validation"]["workspace_config_valid"] = False
+        missing_workspace_validation["probe_results"]["debug"]["config_source_match"] = False
         self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_workspace_validation))
 
         missing_runtime_inventory = clone_json(self.fixtures["opencode_strong"])
         missing_runtime_inventory["probe_results"]["debug"]["skill_inventory_valid"] = False
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_runtime_inventory))
+        self.assertEqual(
+            self.capabilities.select_opencode_proof_branch(missing_runtime_inventory),
+            "fallback-workspace-proof",
+        )
 
         missing_source_match = clone_json(self.fixtures["opencode_fallback"])
         missing_source_match["probe_results"]["debug"]["paths_source_match"] = False
@@ -303,6 +307,92 @@ class CapabilitiesTest(unittest.TestCase):
         self.assertEqual(command["plugin_proof_strength"], capability["plugin_proof_strength"])
         self.assertEqual(command["raw_artifact_hashes"], invocation["raw_artifact_hashes"])
         self.assertEqual(command["model_request"]["endpoint_identity_sha256"], invocation["model_request"]["endpoint_identity_sha256"])
+
+    def test_build_invocation_record_accepts_result_shaped_claude_events(self):
+        config = {
+            "run_id": "2026-07-17T120000Z",
+            "repo_commit_sha": "c" * 40,
+            "timeout_seconds": 120,
+            "endpoint_identity": "https://proxy.example.com/v1?token=secret",
+            "claude": {
+                "harness_model_value": "sonnet",
+                "effort_or_variant": "high",
+            },
+        }
+        capability = self.capabilities.build_capability_record("claude", "2.1.214", self.fixtures["claude_direct"])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            events_path = temp_root / "events.jsonl"
+            stderr_path = temp_root / "stderr.txt"
+            events_path.write_text(
+                json.dumps(
+                    {
+                        "type": "result",
+                        "result": "RESEARCHFLOW_BOOTSTRAP_ACTIVE",
+                        "modelUsage": {"gpt-5.4[1M]": {"inputTokens": 1, "outputTokens": 1}},
+                    }
+                ) + "\n",
+                encoding="utf-8",
+            )
+            stderr_path.write_text("", encoding="utf-8")
+            invocation, command, final_response = self.capabilities.build_invocation_record(
+                "claude",
+                config,
+                capability,
+                "R-DIRECT-LIT",
+                "2.1.214",
+                events_path,
+                stderr_path,
+                0,
+            )
+        self.assertEqual(final_response, "RESEARCHFLOW_BOOTSTRAP_ACTIVE")
+        self.assertEqual(invocation["resolved_model_identity"], "openai/gpt-5.4")
+        self.assertTrue(invocation["model_identity_verified"])
+        self.assertEqual(invocation["model_resolution"]["backing_model_id"], "gpt-5.4")
+        self.assertEqual(invocation["model_resolution"]["proof_source"], "result-model-usage")
+        self.assertEqual(command["resolved_model_identity"], "openai/gpt-5.4")
+
+    def test_canary_passed_accepts_result_shaped_events(self):
+        events = [{"type": "result", "result": "RESEARCHFLOW_BOOTSTRAP_ACTIVE\nextra"}]
+        self.assertTrue(self.capabilities._canary_passed(events))
+        self.assertEqual(self.capabilities._response_text(events), "RESEARCHFLOW_BOOTSTRAP_ACTIVE\nextra")
+
+    def test_extract_model_event_accepts_model_usage_keys_with_openai_prefix(self):
+        event = self.capabilities._extract_model_event(
+            [{"type": "result", "modelUsage": {"openai/gpt-5.4[1M]": {"inputTokens": 1}}}]
+        )
+        self.assertEqual(event["backing_model_id"], "gpt-5.4")
+        self.assertEqual(event["resolved_model_identity"], "openai/gpt-5.4")
+        self.assertEqual(event["proof_source"], "result-model-usage")
+
+    def test_normalize_model_usage_key_strips_bracket_suffix(self):
+        self.assertEqual(self.capabilities._normalize_model_usage_key("gpt-5.4[1M]"), "gpt-5.4")
+        self.assertEqual(self.capabilities._normalize_model_usage_key("openai/gpt-5.4[1M]"), "gpt-5.4")
+
+    def test_response_text_prefers_known_event_shapes_only(self):
+        self.assertEqual(self.capabilities._response_text([{"type": "other", "result": "ignored"}]), "")
+        self.assertEqual(self.capabilities._response_text([{"event": "response", "text": "ok"}]), "ok")
+        self.assertEqual(self.capabilities._response_text([{"type": "result", "result": "ok"}]), "ok")
+
+    def test_extract_model_event_still_fail_closes_without_model_metadata(self):
+        event = self.capabilities._extract_model_event([{"type": "result", "result": "RESEARCHFLOW_BOOTSTRAP_ACTIVE"}])
+        self.assertEqual(event["backing_model_id"], "unknown")
+        self.assertIsNone(event["resolved_model_identity"])
+        self.assertEqual(event["proof_source"], "missing-model-metadata")
+
+    def test_canary_passed_rejects_non_marker_first_line(self):
+        self.assertFalse(self.capabilities._canary_passed([{"type": "result", "result": "not-marker\nRESEARCHFLOW_BOOTSTRAP_ACTIVE"}]))
+
+    def test_normalize_model_usage_key_preserves_plain_model_names(self):
+        self.assertEqual(self.capabilities._normalize_model_usage_key("gpt-5.4"), "gpt-5.4")
+        self.assertEqual(self.capabilities._normalize_model_usage_key(" openai/gpt-5.4 "), "gpt-5.4")
+
+    def test_extract_model_event_uses_first_valid_result_model_usage_key(self):
+        event = self.capabilities._extract_model_event(
+            [{"type": "result", "modelUsage": {"gpt-5.4[1M]": {"inputTokens": 1}, "gpt-5.5[1M]": {"inputTokens": 1}}}]
+        )
+        self.assertEqual(event["backing_model_id"], "gpt-5.4")
+        self.assertEqual(event["resolved_model_identity"], "openai/gpt-5.4")
 
 
 if __name__ == "__main__":

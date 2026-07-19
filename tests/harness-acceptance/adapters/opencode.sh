@@ -209,7 +209,7 @@ MODEL_VALUE="$(config_get opencode.harness_model_value)"
 VARIANT_VALUE="$(config_get opencode.effort_or_variant)"
 TIMEOUT_SECONDS="$(config_get timeout_seconds)"
 SCENARIO_DIR="${FAKE_OPENCODE_SCENARIO_DIR:-}"
-if [[ -x "$CLI_BIN" ]]; then
+if command -v "$CLI_BIN" >/dev/null 2>&1 || [[ -x "$CLI_BIN" ]]; then
   CLI_CMD=("$CLI_BIN")
 else
   CLI_CMD=("bash" "$CLI_BIN")

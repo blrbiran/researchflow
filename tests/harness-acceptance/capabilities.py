@@ -147,9 +147,15 @@ def _read_cli_version(path: Path) -> str:
 def _response_text(events: list[dict[str, Any]]) -> str:
     parts: list[str] = []
     for event in events:
-        if event.get("event") != "response":
-            continue
-        text = event.get("text")
+        text = None
+        if event.get("event") == "response":
+            text = event.get("text")
+        elif event.get("type") == "result":
+            text = event.get("result")
+        elif event.get("type") == "text":
+            part = event.get("part")
+            if isinstance(part, dict):
+                text = part.get("text")
         if isinstance(text, str):
             parts.append(text)
     return "".join(parts)
@@ -159,6 +165,13 @@ def _canary_passed(events: list[dict[str, Any]]) -> bool:
     response = _response_text(events)
     first_line = response.splitlines()[0] if response else ""
     return first_line == CANARY_MARKER
+
+
+def _normalize_model_usage_key(value: str) -> str:
+    normalized = value.split("[", 1)[0].strip()
+    if normalized.startswith("openai/"):
+        normalized = normalized.split("/", 1)[1]
+    return normalized
 
 
 def _extract_model_event(events: list[dict[str, Any]]) -> dict[str, Any]:
@@ -179,6 +192,23 @@ def _extract_model_event(events: list[dict[str, Any]]) -> dict[str, Any]:
             "resolved_model_identity": resolved_model_identity,
             "proof_source": proof_source,
         }
+    for event in events:
+        if event.get("type") != "result":
+            continue
+        model_usage = event.get("modelUsage")
+        if not isinstance(model_usage, dict):
+            continue
+        for key in model_usage.keys():
+            if not isinstance(key, str):
+                continue
+            backing_model_id = _normalize_model_usage_key(key)
+            if not backing_model_id:
+                continue
+            return {
+                "backing_model_id": backing_model_id,
+                "resolved_model_identity": f"openai/{backing_model_id}",
+                "proof_source": "result-model-usage",
+            }
     return {
         "backing_model_id": "unknown",
         "resolved_model_identity": None,
@@ -274,12 +304,20 @@ def _validate_opencode_workspace_config(path: Path, repo_root: str) -> bool:
 
 
 def _runtime_skill_inventory_valid(payload: Any) -> bool:
-    if not isinstance(payload, dict):
-        return False
-    skills = payload.get("skills")
-    if not isinstance(skills, list):
-        return False
-    skill_names = {item for item in skills if isinstance(item, str)}
+    skill_names: set[str] = set()
+    if isinstance(payload, dict):
+        skills = payload.get("skills")
+        if isinstance(skills, list):
+            skill_names = {item for item in skills if isinstance(item, str)}
+    elif isinstance(payload, str):
+        for line in payload.splitlines():
+            marker = '"name": "'
+            if marker not in line:
+                continue
+            _, _, remainder = line.partition(marker)
+            name, _, _ = remainder.partition('"')
+            if name:
+                skill_names.add(name)
     return all(skill in skill_names for skill in REQUIRED_PRIMARY_SKILLS)
 
 
@@ -287,13 +325,21 @@ def _plugin_path_matches(payload: Any, repo_root: str) -> bool:
     return isinstance(payload, dict) and payload.get("plugin_path") == repo_root
 
 
+def _plugin_path_matches_text(payload: str, repo_root: str) -> bool:
+    plugin_file = f"{repo_root}/.opencode/plugins/researchflow.js"
+    return repo_root in payload or plugin_file in payload or f"file://{plugin_file}" in payload
+
+
 def _opencode_paths_isolation_supported(payload: Any) -> bool:
-    if not isinstance(payload, dict):
+    if isinstance(payload, dict):
+        for key in ("config_dir", "data_dir", "cache_dir", "state_dir"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return True
         return False
-    for key in ("config_dir", "data_dir", "cache_dir", "state_dir"):
-        value = payload.get(key)
-        if isinstance(value, str) and value:
-            return True
+    if isinstance(payload, str):
+        prefixes = ("config", "data", "cache", "state")
+        return any(line.split(maxsplit=1)[0] in prefixes for line in payload.splitlines() if line.strip())
     return False
 
 
@@ -302,7 +348,7 @@ def _claude_environment_validation(help_text: str) -> dict[str, bool]:
         "plugin_dir_supported": "--plugin-dir" in help_text,
         "session_persistence_disable_supported": "--no-session-persistence" in help_text,
         "tools_disable_supported": "--tools" in help_text,
-        "structured_output_supported": "--output-format json" in help_text,
+        "structured_output_supported": "--output-format" in help_text,
         "full_isolation_supported": "--bare" in help_text,
     }
 
@@ -433,7 +479,10 @@ def select_opencode_proof_branch(probe: dict[str, Any]) -> Optional[str]:
         return None
 
     config_available = _truthy(debug.get("config"))
-    config_valid = (not config_available) or _truthy(debug.get("config_source_match"))
+    config_source_match = _truthy(debug.get("config_source_match"))
+    repo_validation = probe_results.get("repo_validation") if isinstance(probe_results.get("repo_validation"), dict) else {}
+    workspace_config_valid = _truthy(repo_validation.get("workspace_config_valid"))
+    config_valid = workspace_config_valid or config_source_match
     paths_available = _truthy(debug.get("paths"))
     paths_valid = (
         paths_available
@@ -441,18 +490,12 @@ def select_opencode_proof_branch(probe: dict[str, Any]) -> Optional[str]:
         and _truthy(debug.get("paths_isolation_supported"))
     )
     skill_available = _truthy(debug.get("skill"))
-    skill_valid = (not skill_available) or _truthy(debug.get("skill_inventory_valid"))
+    skill_inventory_valid = _truthy(debug.get("skill_inventory_valid"))
 
-    if (
-        config_available
-        and _truthy(debug.get("config_source_match"))
-        and paths_valid
-        and skill_available
-        and _truthy(debug.get("skill_inventory_valid"))
-    ):
+    if config_available and config_source_match and paths_valid and skill_available and skill_inventory_valid:
         return OPENCODE_STRONG_BRANCH
 
-    if paths_valid and config_valid and skill_valid:
+    if paths_valid and config_valid:
         return OPENCODE_FALLBACK_BRANCH
     return None
 
@@ -665,6 +708,9 @@ def _probe_from_opencode_dir(config: dict[str, Any], probe_dir: Path) -> tuple[s
     debug_config_payload = _read_json_object(probe_dir / "debug-config.json")
     debug_paths_payload = _read_json_object(probe_dir / "debug-paths.json")
     debug_skill_payload = _read_json_object(probe_dir / "debug-skill.json")
+    debug_config_text = _read_text(probe_dir / "debug-config.json")
+    debug_paths_text = _read_text(probe_dir / "debug-paths.json")
+    debug_skill_text = _read_text(probe_dir / "debug-skill.json")
     debug_config_status = _read_status(probe_dir / "debug-config.status") == 0
     debug_paths_status = _read_status(probe_dir / "debug-paths.status") == 0
     debug_skill_status = _read_status(probe_dir / "debug-skill.status") == 0
@@ -674,11 +720,14 @@ def _probe_from_opencode_dir(config: dict[str, Any], probe_dir: Path) -> tuple[s
         str(repo_root),
     )
     repo_validation["workspace_config_valid"] = workspace_config_valid
-    config_source_match = debug_config_status and _plugin_path_matches(debug_config_payload, str(repo_root))
-    paths_source_match = debug_paths_status and _plugin_path_matches(debug_paths_payload, str(repo_root))
-    skill_inventory_valid = debug_skill_status and _runtime_skill_inventory_valid(debug_skill_payload)
-    paths_isolation_supported = debug_paths_status and _opencode_paths_isolation_supported(debug_paths_payload)
-    workspace_plugin_matches_checkout = bool(workspace_config_valid or config_source_match or paths_source_match)
+    config_source_match = debug_config_status and (
+        _plugin_path_matches(debug_config_payload, str(repo_root))
+        or _plugin_path_matches_text(debug_config_text, str(repo_root))
+    )
+    workspace_plugin_matches_checkout = bool(workspace_config_valid or config_source_match)
+    paths_source_match = debug_paths_status and workspace_plugin_matches_checkout
+    skill_inventory_valid = debug_skill_status and _runtime_skill_inventory_valid(debug_skill_payload or debug_skill_text)
+    paths_isolation_supported = debug_paths_status and _opencode_paths_isolation_supported(debug_paths_payload or debug_paths_text)
     probe = {
         "harness": "opencode",
         "workspace_plugin_matches_checkout": workspace_plugin_matches_checkout,
