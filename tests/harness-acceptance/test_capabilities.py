@@ -182,14 +182,52 @@ class CapabilitiesTest(unittest.TestCase):
 
         missing_runtime_inventory = clone_json(self.fixtures["opencode_strong"])
         missing_runtime_inventory["probe_results"]["debug"]["skill_inventory_valid"] = False
-        self.assertEqual(
-            self.capabilities.select_opencode_proof_branch(missing_runtime_inventory),
-            "fallback-workspace-proof",
-        )
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_runtime_inventory))
+
+        contradictory_config_surface = clone_json(self.fixtures["opencode_fallback"])
+        contradictory_config_surface["probe_results"]["debug"]["config"] = True
+        contradictory_config_surface["probe_results"]["debug"]["config_source_match"] = False
+        contradictory_config_surface["probe_results"]["debug"]["skill"] = False
+        contradictory_config_surface["probe_results"]["debug"]["skill_inventory_valid"] = False
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(contradictory_config_surface))
 
         missing_source_match = clone_json(self.fixtures["opencode_fallback"])
         missing_source_match["probe_results"]["debug"]["paths_source_match"] = False
         self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_source_match))
+
+    def test_probe_from_dir_opencode_paths_source_match_requires_paths_evidence(self):
+        config = {"repo_root": str(ROOT)}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            probe_dir = Path(temp_dir) / "opencode"
+            (probe_dir / "workspace").mkdir(parents=True, exist_ok=True)
+            (probe_dir / "workspace" / "opencode.json").write_text(
+                json.dumps({"plugin": [str(ROOT)]}),
+                encoding="utf-8",
+            )
+            (probe_dir / "version.txt").write_text("OpenCode 1.18.3\n", encoding="utf-8")
+            (probe_dir / "debug-config.json").write_text(
+                json.dumps({"plugin_path": str(ROOT)}),
+                encoding="utf-8",
+            )
+            (probe_dir / "debug-config.status").write_text("0\n", encoding="utf-8")
+            (probe_dir / "debug-paths.json").write_text(
+                "config /tmp/opencode-config\nstate /tmp/opencode-state\n",
+                encoding="utf-8",
+            )
+            (probe_dir / "debug-paths.status").write_text("0\n", encoding="utf-8")
+            (probe_dir / "debug-skill.json").write_text("", encoding="utf-8")
+            (probe_dir / "debug-skill.status").write_text("1\n", encoding="utf-8")
+            (probe_dir / "canary.jsonl").write_text(
+                json.dumps({"type": "result", "result": "RESEARCHFLOW_BOOTSTRAP_ACTIVE"}) + "\n",
+                encoding="utf-8",
+            )
+            (probe_dir / "canary.status").write_text("0\n", encoding="utf-8")
+
+            _, probe = self.capabilities.probe_from_dir("opencode", config, probe_dir)
+
+        self.assertTrue(probe["workspace_plugin_matches_checkout"])
+        self.assertFalse(probe["probe_results"]["debug"]["paths_source_match"])
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(probe))
 
     def test_probe_from_dir_fail_closes_on_empty_and_malformed_native_outputs(self):
         config = {"repo_root": str(ROOT)}

@@ -343,6 +343,12 @@ def _opencode_paths_isolation_supported(payload: Any) -> bool:
     return False
 
 
+def _opencode_paths_source_match(payload: Any, payload_text: str, repo_root: str) -> bool:
+    if _plugin_path_matches(payload, repo_root):
+        return True
+    return _plugin_path_matches_text(payload_text, repo_root)
+
+
 def _claude_environment_validation(help_text: str) -> dict[str, bool]:
     return {
         "plugin_dir_supported": "--plugin-dir" in help_text,
@@ -482,20 +488,37 @@ def select_opencode_proof_branch(probe: dict[str, Any]) -> Optional[str]:
     config_source_match = _truthy(debug.get("config_source_match"))
     repo_validation = probe_results.get("repo_validation") if isinstance(probe_results.get("repo_validation"), dict) else {}
     workspace_config_valid = _truthy(repo_validation.get("workspace_config_valid"))
-    config_valid = workspace_config_valid or config_source_match
     paths_available = _truthy(debug.get("paths"))
-    paths_valid = (
-        paths_available
-        and _truthy(debug.get("paths_source_match"))
-        and _truthy(debug.get("paths_isolation_supported"))
-    )
+    paths_source_match = _truthy(debug.get("paths_source_match"))
+    paths_isolation_supported = _truthy(debug.get("paths_isolation_supported"))
     skill_available = _truthy(debug.get("skill"))
     skill_inventory_valid = _truthy(debug.get("skill_inventory_valid"))
 
-    if config_available and config_source_match and paths_valid and skill_available and skill_inventory_valid:
+    if (
+        config_available
+        and config_source_match
+        and paths_available
+        and paths_source_match
+        and paths_isolation_supported
+        and skill_available
+        and skill_inventory_valid
+    ):
         return OPENCODE_STRONG_BRANCH
 
-    if paths_valid and config_valid:
+    available_debug_evidence_consistent = (
+        (not config_available or config_source_match)
+        and (not paths_available or (paths_source_match and paths_isolation_supported))
+        and (not skill_available or skill_inventory_valid)
+    )
+    fallback_debug_surface_missing = not (config_available and paths_available and skill_available)
+    if (
+        available_debug_evidence_consistent
+        and fallback_debug_surface_missing
+        and workspace_config_valid
+        and paths_available
+        and paths_source_match
+        and paths_isolation_supported
+    ):
         return OPENCODE_FALLBACK_BRANCH
     return None
 
@@ -725,7 +748,11 @@ def _probe_from_opencode_dir(config: dict[str, Any], probe_dir: Path) -> tuple[s
         or _plugin_path_matches_text(debug_config_text, str(repo_root))
     )
     workspace_plugin_matches_checkout = bool(workspace_config_valid or config_source_match)
-    paths_source_match = debug_paths_status and workspace_plugin_matches_checkout
+    paths_source_match = debug_paths_status and _opencode_paths_source_match(
+        debug_paths_payload,
+        debug_paths_text,
+        str(repo_root),
+    )
     skill_inventory_valid = debug_skill_status and _runtime_skill_inventory_valid(debug_skill_payload or debug_skill_text)
     paths_isolation_supported = debug_paths_status and _opencode_paths_isolation_supported(debug_paths_payload or debug_paths_text)
     probe = {

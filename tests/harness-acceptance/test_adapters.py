@@ -174,6 +174,28 @@ class AdapterTest(unittest.TestCase):
             self.assertEqual(fallback_capability["selected_isolation_profile"], "workspace-config-static-proof")
             self.assertEqual(fallback_capability["plugin_proof_strength"], "workspace_config_static_inventory_canary")
 
+    def test_opencode_capability_mode_does_not_fallback_on_negative_available_debug_surface(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            scenario_dir = self.clone_scenario(temp_root, "opencode-fallback")
+            (scenario_dir / "debug-config.json").write_text(
+                json.dumps({"format": "json", "plugin_path": "/tmp/not-researchflow"}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            (scenario_dir / "debug-config.exit").write_text("0\n", encoding="utf-8")
+            config_path = self.make_config(temp_root, "opencode-fallback", "opencode")
+            output_dir = temp_root / "capabilities"
+            result = self.run_adapter(self.opencode_adapter, "capability", config_path, output_dir, scenario_dir=scenario_dir)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            capability = read_json(output_dir / "opencode.json")
+            self.assertIsNone(capability["selected_proof_branch"])
+            self.assertIsNone(capability["selected_isolation_profile"])
+            self.assertIsNone(capability["plugin_proof_strength"])
+            self.assertFalse(capability["probe_results"]["debug"]["config_source_match"])
+            self.assertTrue(capability["probe_results"]["debug"]["paths"])
+            self.assertTrue(capability["probe_results"]["debug"]["paths_source_match"])
+            self.assertTrue(capability["workspace_plugin_matches_checkout"])
+
     def test_preflight_mode_writes_redacted_model_proof(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)
