@@ -29,7 +29,8 @@ In scope:
 - real redaction and summary reconstruction against preflight-only artifacts;
 - operator workflow for reviewing redacted proof artifacts;
 - strict handling of first-seen backing-model allowlist gaps;
-- producing one of three outcomes: `blocked`, `allowlist-update-needed`, or `continuation-ready`.
+- producing one of three outcomes: `blocked`, `allowlist-update-needed`, or `continuation-ready`;
+- machine-readable blocked sub-reasons, including `runtime-proof-unavailable` when a harness can execute preflight successfully but cannot emit authoritative runtime model proof.
 
 Out of scope:
 
@@ -68,6 +69,25 @@ Any hard gate fails:
 
 The run is closed as blocked evidence and never continues to Task 7.
 
+Blocked execution may carry a machine-readable sub-reason. One required blocked sub-reason is `runtime-proof-unavailable`.
+
+### 3.1.1 `runtime-proof-unavailable`
+
+`runtime-proof-unavailable` is a blocked result, not a fourth top-level terminal outcome.
+
+It applies when:
+
+- a harness passes capability and preflight evidence;
+- the harness can execute the real preflight canary under the selected isolation/plugin proof path;
+- but the harness does not emit authoritative runtime model proof sufficient to establish `backing_model_id`, `resolved_model_identity`, and `verified = true` from committed redacted artifacts.
+
+This blocked sub-reason is required so Task 6 can distinguish between:
+
+- a harness that could not run correctly at all; and
+- a harness that ran correctly but whose runtime proof surface was insufficient for model-identity verification.
+
+A `runtime-proof-unavailable` run must remain blocked even if static configuration appears to name a model that would otherwise look aligned.
+
 ### 3.2 `allowlist-update-needed`
 
 Both real harnesses prove the same backing model, but that model is not yet present in `model-identities.json`.
@@ -93,7 +113,7 @@ Task 6 must make all three terminal outcomes reconstructable from committed arti
 - `allowlist-update-needed`
 - `continuation-ready`
 
-For blocked-style runs, that means the summary payload must distinguish ordinary blocked results from allowlist-update-needed results via a machine-readable field, not only a human-readable note.
+For blocked-style runs, that means the summary payload must distinguish ordinary blocked results, `runtime-proof-unavailable`, and allowlist-update-needed results via machine-readable fields, not only human-readable notes.
 
 The exact field name may be decided at implementation time, but the distinction itself is required.
 
@@ -105,8 +125,6 @@ Possible acceptable shapes include:
 A plain blocked summary with no machine-readable distinction is insufficient.
 
 The design intent is that future operator steps and Task 7 gating logic can classify the run without reinterpreting prose.
-
-## 7. Evidence and result semantics
 
 ### 3.3 `continuation-ready`
 
@@ -170,9 +188,17 @@ No Task 6 run may be retroactively converted from blocked to continuation-ready.
 
 ## 5. Model identity and allowlist handling
 
-Task 6 must not infer backing-model identity from route labels, aliases, or local config.
+Task 6 must not infer backing-model identity from route labels, aliases, local config, or other static configuration surfaces.
 
 The only acceptable source of canonical model identity remains real redacted proof.
+
+Static declarations may support diagnosis, but they are not proof. In particular, Task 6 must not treat any of the following as canonical model proof:
+
+- Claude route aliases such as `sonnet`;
+- OpenCode route labels such as `openai-compatible/gpt-5.4`;
+- `run-config.local.json` values;
+- `~/.config/opencode/opencode.jsonc` model/provider settings;
+- `debug-config` or equivalent resolved configuration dumps.
 
 ### 5.1 Same-model rule
 
@@ -214,9 +240,11 @@ The fixed operator flow is:
 2. prepare `run-config.local.json` without secrets in the file itself;
 3. allocate a new `run-id`;
 4. execute `--mode preflight-only`;
-5. run redaction scan, then run summary reconstruction/check-only only for blocked or `allowlist-update-needed` outcomes;
+5. run redaction scan, then run summary reconstruction/check-only only for blocked-style outcomes;
 6. manually review redacted model proofs and the resulting blocked preflight summary when present;
 7. classify outcome as `blocked`, `allowlist-update-needed`, or `continuation-ready`.
+
+If either harness proves runtime viability yet cannot emit authoritative runtime model proof, the operator must classify the run as `blocked` with reason `runtime-proof-unavailable`. The current motivating case is Claude proving a canonical model identity while OpenCode passes capability/preflight but cannot emit authoritative runtime model proof.
 
 For a `continuation-ready` preflight-only run, Task 6 does not require final summary artifacts and therefore does not require `summarize --check-only` to succeed against a non-existent final summary. In that outcome, the validation target is the preflight artifact set plus `preflight/baseline.json`, not `summary.json` / `summary.md`.
 

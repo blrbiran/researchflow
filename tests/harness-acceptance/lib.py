@@ -20,6 +20,7 @@ REASON_CODES: tuple[str, ...] = (
     "model_alignment_blocked",
     "global_hard_gate_blocked",
     "runtime_harness_stopped",
+    "runtime-proof-unavailable",
 )
 
 _CASE_FIELDS = (

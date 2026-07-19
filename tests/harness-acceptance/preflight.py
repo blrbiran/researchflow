@@ -19,6 +19,7 @@ import lib  # noqa: E402
     MODEL_ALIGNMENT_BLOCKED,
     GLOBAL_HARD_GATE_BLOCKED,
     _RUNTIME_HARNESS_STOPPED,
+    RUNTIME_PROOF_UNAVAILABLE,
 ) = lib.REASON_CODES
 
 
@@ -49,7 +50,7 @@ def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], mo
         preflight.get("plugin_proof_strength"),
     )
     plugin_source_id = preflight.get("plugin_source_id") if isinstance(preflight.get("plugin_source_id"), str) and preflight.get("plugin_source_id") else None
-    passed = (
+    raw_gate_passed = (
         preflight.get("status") == "pass"
         and isolation_profile_consistent
         and plugin_proof_strength_consistent
@@ -59,11 +60,12 @@ def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], mo
         and bool(plugin_proof_strength)
         and isinstance(plugin_source_id, str)
         and bool(plugin_source_id)
-        and inspected["proof_valid"]
     )
-    canonical_identity = inspected["canonical_identity"] if passed else None
+    proof_gate_passed = raw_gate_passed and inspected["proof_valid"]
+    canonical_identity = inspected["canonical_identity"] if proof_gate_passed else None
     return {
-        "status": "pass" if passed and isinstance(inspected["canonical_identity"], str) else "blocked",
+        "status": "pass" if raw_gate_passed else "blocked",
+        "raw_gate_passed": raw_gate_passed,
         "plugin_source_id": plugin_source_id,
         "plugin_proof_strength": plugin_proof_strength,
         "isolation_profile": isolation_profile,
@@ -95,8 +97,16 @@ def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dic
 
 def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]:
     alignment = evaluate_model_alignment(claude_result, opencode_result)
+    if alignment["aligned"]:
+        return {
+            "outcome": "continuation-ready",
+            "reason_code": None,
+            "canonical_identity": alignment["canonical_identity"],
+        }
+    raw_gate_passed = bool(claude_result.get("raw_gate_passed")) and bool(opencode_result.get("raw_gate_passed"))
     if (
-        alignment["reason_code"] == "global_hard_gate_blocked"
+        raw_gate_passed
+        and alignment["reason_code"] == GLOBAL_HARD_GATE_BLOCKED
         and claude_result.get("proof_valid")
         and opencode_result.get("proof_valid")
         and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
@@ -104,24 +114,24 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
     ):
         return {
             "outcome": "allowlist-update-needed",
-            "reason_code": "global_hard_gate_blocked",
+            "reason_code": GLOBAL_HARD_GATE_BLOCKED,
+            "canonical_identity": None,
+        }
+    if raw_gate_passed and (not claude_result.get("proof_valid") or not opencode_result.get("proof_valid")):
+        return {
+            "outcome": "blocked",
+            "reason_code": RUNTIME_PROOF_UNAVAILABLE,
             "canonical_identity": None,
         }
     if claude_result.get("status") != "pass" or opencode_result.get("status") != "pass":
         return {
             "outcome": "blocked",
-            "reason_code": alignment["reason_code"] or "global_hard_gate_blocked",
+            "reason_code": alignment["reason_code"] or GLOBAL_HARD_GATE_BLOCKED,
             "canonical_identity": None,
-        }
-    if alignment["aligned"]:
-        return {
-            "outcome": "continuation-ready",
-            "reason_code": None,
-            "canonical_identity": alignment["canonical_identity"],
         }
     return {
         "outcome": "blocked",
-        "reason_code": alignment["reason_code"] or "model_alignment_blocked",
+        "reason_code": alignment["reason_code"] or MODEL_ALIGNMENT_BLOCKED,
         "canonical_identity": None,
     }
 

@@ -1,0 +1,165 @@
+{
+  "acceptance_passed": false,
+  "accounting_rows": [
+    {
+      "case_id": "R-DIRECT-LIT",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-STRUCT",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-DRAFT",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-REVIEW",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-PACK",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-BACK-INTRO",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-BACK-PDF",
+      "harness": "claude",
+      "reason_code": "global_hard_gate_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-LIT",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-STRUCT",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-DRAFT",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-REVIEW",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-DIRECT-PACK",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-BACK-INTRO",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    },
+    {
+      "case_id": "R-BACK-PDF",
+      "harness": "opencode",
+      "reason_code": "opencode_preflight_blocked",
+      "status": "unattempted"
+    }
+  ],
+  "case_count_per_harness": 7,
+  "cross_harness_model_confound": false,
+  "deviations": [],
+  "evidence_links": {
+    "capabilities": {
+      "claude": "capabilities/claude.json",
+      "opencode": "capabilities/opencode.json"
+    },
+    "model_proofs": {
+      "claude": "preflight/claude-model-proof.json",
+      "opencode": "preflight/opencode-model-proof.json"
+    },
+    "preflight": {
+      "claude": "preflight/claude.json",
+      "opencode": "preflight/opencode.json"
+    }
+  },
+  "harnesses": {
+    "claude": {
+      "contamination": {
+        "case_ids": [],
+        "contaminated_invocations": 0
+      },
+      "isolation_profile": "full-direct-plugin-dir",
+      "plugin_proof_strength": "best_available_source_plus_canary",
+      "plugin_source_id": "researchflow-checkout",
+      "preflight": "pass",
+      "resolved_model_identity": "openai/gpt-5.4",
+      "verdict_counts": {
+        "fail": 0,
+        "harness_error": 0,
+        "indeterminate": 0,
+        "pass": 0,
+        "unattempted": 7
+      }
+    },
+    "opencode": {
+      "contamination": {
+        "case_ids": [],
+        "contaminated_invocations": 0
+      },
+      "isolation_profile": null,
+      "plugin_proof_strength": null,
+      "plugin_source_id": "researchflow-checkout",
+      "preflight": "blocked",
+      "resolved_model_identity": null,
+      "verdict_counts": {
+        "fail": 0,
+        "harness_error": 0,
+        "indeterminate": 0,
+        "pass": 0,
+        "unattempted": 7
+      }
+    }
+  },
+  "manual_notes": [],
+  "model_alignment": {
+    "aligned": false,
+    "blocked": true,
+    "canonical_identity": null,
+    "required": true
+  },
+  "outcome": "blocked",
+  "packaging_redaction_passed": true,
+  "raw_artifacts": {
+    "manual_review_status": "pending",
+    "reason_not_committed": "raw event streams remain local",
+    "relative_id": "local-raw/2026-07-19T152433Z",
+    "sha256": "0bcd6cf7699dd4e00ef6a7527483d41573c7182c8e91b93aa050532219019e50"
+  },
+  "reason_code": "global_hard_gate_blocked",
+  "release_candidate_eligible": false,
+  "run_complete": true,
+  "run_id": "2026-07-19T152433Z",
+  "run_kind": "original",
+  "verdict_counts_valid": true
+}

@@ -1,0 +1,14 @@
+{
+  "backing_model_id": "gpt-5.4",
+  "endpoint_identity_sha256": "bce5a259b35f29e48eb4dd4560b2d8c8c3d48698a3702e43386a4de2ee6d462b",
+  "harness": "claude",
+  "proof_method": "result-model-usage",
+  "proof_sha256": "ea3f3d2fa52a3a6b3b7bf4ec130b8616ff9960e85e1fd5411a4685ea17080074",
+  "proxy_kind": "litellm",
+  "redaction_passed": true,
+  "requested_route": "sonnet",
+  "resolved_model_identity": "openai/gpt-5.4",
+  "schema_version": 1,
+  "upstream_provider": "openai",
+  "verified": true
+}
