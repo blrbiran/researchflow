@@ -1,16 +1,50 @@
 # ResearchFlow Plugin Handover
 
-> Updated: 2026-07-18
+> Updated: 2026-07-19
 > Expected agent cwd: the ResearchFlow repository root (`reference/researchflow/` from the parent; `.` inside this document)
 > Remote: `git@github.com:blrbiran/researchflow.git`
 > Historical design checkout branch: `docs/live-harness-acceptance-design`
 > Repository-root branch: `main`
-> Repository-root HEAD: `ab71a30`
-> Origin branch state: `main` matches `origin/main` at `ab71a30`
+> Repository-root HEAD: `06cac50`
+> Origin branch state: local `main` is ahead of `origin/main` by 1 commit (`06cac50 add task6 spec`); `origin/main` still points to `673f8a6`
 > Preserved implementation worktree from this cwd: none
 > Preserved implementation branch: none
 > Preserved implementation HEAD: none
-> Task 4 synthetic review-closure commits now in `main`: `5ef0c7f`, `4896875`, `1b13451`, `46791dd`, `ab71a30`
+> Task 5 synthetic preflight/orchestration was completed, reviewed, merged locally to `main`, and its manual `.worktrees/task5-synthetic-preflight-orchestration` workspace was removed.
+> The latest Task 5 code is already in local `main` ancestry under merge commit `673f8a6`.
+> Task 6 design is now approved in `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`.
+> Task 6 implementation plan is now approved in `docs/superpowers/plans/2026-07-19-task6-real-preflight.md`.
+> There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
+> The next implementation step is Task 6 real preflight-only execution, not more Task 5 work.
+> Do not reopen Task 5 unless new evidence shows a concrete regression against the merged local `main` behavior or the approved Task 5 design/plan.
+> The parent `ccmem_paper` repository submodule pointer update was handled manually by the user after Task 5; verify current parent intent before making any further parent-repo claims.
+> Local planning/design docs now include Task 5 and Task 6 records; preserve them unless the user explicitly asks otherwise.
+> Outstanding historical local worktree to preserve still includes repo-local `.claude/worktrees/agent-a7e704d91a6ea7c24` with a tracked modification to `tests/claude-code/run-tests.sh` plus local `.omc/`; do not discard it silently.
+> Additional `.claude/worktrees/agent-*` entries remain harness/session residue; do not clean them without explicit per-path review and user approval.
+> Safe observed tool versions remain:
+> - Claude Code: `2.1.214`
+> - OpenCode: `1.17.15`
+> - Python: `3.9.13`
+> Future agents should treat the latest canonical local implementation state as repo-root `main @ 06cac50`, with Task 5 code merged locally and Task 6 still at design/plan stage only.
+> End of current-state header.
+> 
+> Executive summary for next agent (10 lines max):
+> 1. CWD is this repo root; current local branch is `main` at `06cac50`, ahead of `origin/main` by 1 docs/spec commit.
+> 2. Task 5 is done locally on `main`; merge commit is `673f8a6`, and the manual Task 5 `.worktrees/` workspace was removed.
+> 3. Task 5 synthetic suite passed on merged main; no real Claude/OpenCode/LiteLLM/model execution has happened yet.
+> 4. Task 6 spec: `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`.
+> 5. Task 6 plan: `docs/superpowers/plans/2026-07-19-task6-real-preflight.md`.
+> 6. Task 6 only covers real `preflight-only`; do not run scored cases.
+> 7. If real proof reveals a new backing model, block the run, commit evidence, update allowlist separately, then start a new run.
+> 8. Continuation-ready Task 6 run is the only legal entrypoint for Task 7.
+> 9. Preserve repo-local `.claude/worktrees/agent-a7e704d91a6ea7c24`; do not delete `.omc/` or clean harness worktrees without approval.
+> 10. Before implementation, reread the Task 6 spec/plan and verify current git/main state rather than trusting older Task 4/5 notes.
+> 
+> 
+> Historical notes below remain for provenance where not explicitly updated.
+> 
+> 
+> > Task 4 synthetic review-closure commits now in `main`: `5ef0c7f`, `4896875`, `1b13451`, `46791dd`, `ab71a30`
 > Parent repo note: the parent `ccmem_paper` checkout currently sees `reference/researchflow` as modified both because this handover file is still uncommitted in the repo-root working tree and because the parent gitlink still points to `964d14d`; after this handover update is committed here, the parent will still need a separate gitlink update to record `ab71a30`
 > Cleanup note: the temporary `.worktrees/task4-review-close` branch/worktree used for Task 4 closure has already been merged into `main` and removed.
 > Local planning artifacts from this closure pass remain untracked in this repo:
@@ -174,9 +208,9 @@ The original live-harness design/handover work happened on `docs/live-harness-ac
 Current repo-root state:
 
 - branch: `main`;
-- HEAD: `ab71a30 fix: fail-close full isolation capability proof`;
+- HEAD: `06cac50 add task6 spec`;
 - upstream: `origin/main`;
-- `main` currently matches `origin/main`.
+- local `main` is ahead of `origin/main` by 1 commit, and `origin/main` currently points to `673f8a6`.
 
 Use the historical design branch only when you specifically need to inspect the earlier design-only checkout state.
 
@@ -186,7 +220,9 @@ There is no remaining manual `.worktrees/*` implementation checkout under this r
 
 The temporary `.worktrees/task4-review-close/` workspace used for the Task 4 closure pass has already been merged into `main` and removed.
 
-Future implementation should start from repo-root `main @ ab71a30` or a fresh new worktree created from it. Do not assume the previously mentioned `main-preserved` convenience checkout still exists.
+The later `.worktrees/task5-synthetic-preflight-orchestration/` workspace used for Task 5 implementation and local merge-back has also been removed after successful merge to `main`.
+
+Future implementation should start from repo-root `main @ 06cac50` or a fresh new worktree created from it. Do not assume any earlier Task 4/Task 5 convenience checkout still exists.
 
 ## 3. Completed thin-router delivery
 
@@ -391,11 +427,11 @@ What is now verified on merged `main @ ab71a30`:
 
 Task 4 is therefore **synthetically review-closed only**. This does **not** mean live acceptance has been run. There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
 
-### 5.5 Tasks 5–7 — not started
+### 5.5 Tasks 5–7 — current status
 
-- Task 5: preflight, model-alignment hard gate, orchestration, synthetic runner wiring
-- Task 6: real capability/preflight-only run
-- Task 7: at most 14 scored cases and bounded evidence packaging
+- Task 5: **complete locally on `main`** — synthetic preflight, model-alignment hard gate, orchestration, synthetic runner wiring, and fail-closed follow-up fixes are merged into local `main` ancestry through `673f8a6` plus later local follow-up commits reachable from current `main`.
+- Task 6: **design/plan complete, implementation not started** — real capability/preflight-only run is the next execution step.
+- Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
 
 No real Claude Code, OpenCode, LiteLLM, network, or paid model invocation has been made by the implementation tasks so far.
 
@@ -428,39 +464,40 @@ Safe tool versions observed without exposing configuration values:
 
 ## 7. Exact next step for the next agent
 
-Resume from repo-root `main @ ab71a30`.
+Resume from repo-root `main @ 06cac50`.
 
-The next implementation step is **Task 5 synthetic preflight/orchestration**. Do not reopen Task 4 unless new evidence shows a concrete synthetic regression or a spec mismatch.
+The next implementation step is **Task 6 real preflight-only execution**. Do not reopen Task 5 unless new evidence shows a concrete regression or a spec mismatch against merged local `main`.
 
 Recommended procedure from this cwd:
 
-1. Start from a fresh clean worktree or fresh environment based on `main` rather than reusing stopped harness worktrees.
-2. Read the approved design and plan:
+1. Verify current git state and confirm whether the user wants any additional push/sync action; local `main` is ahead of `origin/main` by 1 docs/spec commit.
+2. Read the approved Task 6 design and plan:
 
    ```text
-   docs/superpowers/specs/2026-07-17-live-harness-acceptance-design.md
-   docs/superpowers/plans/2026-07-17-live-harness-acceptance.md
+   docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md
+   docs/superpowers/plans/2026-07-19-task6-real-preflight.md
    ```
 
-3. Implement Task 5 synthetic preflight/orchestration on top of the now-closed Task 4 synthetic baseline.
-4. Rerun at least:
+3. Start from a fresh clean worktree or fresh environment based on current `main` rather than reviving stopped harness worktrees.
+4. Re-run the synthetic baseline before any real preflight work:
 
    ```bash
-   python3 -m unittest discover -s tests/harness-acceptance -p 'test_*.py' -v
+   ./tests/harness-acceptance/run-tests.sh
    ./tests/run-all.sh
    ```
 
-5. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
-6. Do not invoke real `claude`, `opencode`, LiteLLM, network services, or models until the plan explicitly reaches the real preflight/run stages.
+5. Execute only real `--mode preflight-only` work for Task 6; do not run scored cases.
+6. If real proofs expose a new backing model absent from `model-identities.json`, record blocked evidence, update the allowlist in a separate commit, and start a new run with a new `run-id`.
+7. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
+8. Do not invoke real `claude`, `opencode`, LiteLLM, network services, or models outside the explicit Task 6 preflight-only flow.
 
 ## 8. Remaining implementation order and stop conditions
 
 Proceed in this order only:
 
-1. Task 5 synthetic preflight/orchestration
-2. Task 5 review and full synthetic baseline
-3. Task 6 real preflight-only run
-4. Task 7 scored run only if all hard gates pass
+1. Task 6 real preflight-only run
+2. Task 6 blocked/allowlist-update-needed handling or continuation-ready confirmation
+3. Task 7 scored run only if a continuation-ready Task 6 run exists
 
 Hard stops:
 
