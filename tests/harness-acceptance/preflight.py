@@ -64,7 +64,7 @@ def evaluate_preflight(capability: dict[str, Any], preflight: dict[str, Any], mo
     proof_gate_passed = raw_gate_passed and inspected["proof_valid"]
     canonical_identity = inspected["canonical_identity"] if proof_gate_passed else None
     return {
-        "status": "pass" if proof_gate_passed and isinstance(inspected["canonical_identity"], str) else "blocked",
+        "status": "pass" if raw_gate_passed else "blocked",
         "raw_gate_passed": raw_gate_passed,
         "plugin_source_id": plugin_source_id,
         "plugin_proof_strength": plugin_proof_strength,

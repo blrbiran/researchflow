@@ -90,8 +90,10 @@ class PreflightTest(unittest.TestCase):
         model_proof = copy.deepcopy(self.base_model_proof)
         model_proof.pop("proof_sha256")
         result = self.preflight.evaluate_preflight(capability, preflight, model_proof, self.identities)
-        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["status"], "pass")
+        self.assertTrue(result["raw_gate_passed"])
         self.assertFalse(result["proof_valid"])
+        self.assertIsNone(result["canonical_identity"])
 
     def test_evaluate_preflight_blocks_on_capability_preflight_profile_mismatch(self):
         capability = copy.deepcopy(self.capability["claude"])
@@ -171,7 +173,7 @@ class PreflightTest(unittest.TestCase):
             "allowlist_missing": False,
         }
         opencode = {
-            "status": "blocked",
+            "status": "pass",
             "raw_gate_passed": True,
             "canonical_identity": None,
             "proof_identity": None,

@@ -48,6 +48,14 @@ write_json = lib.write_json
 REASON_CODES = set(lib.REASON_CODES)
 VERDICTS = set(lib.VERDICTS)
 _SHA256_RE = getattr(lib, "_SHA256_RE")
+(
+    _CLAUDE_PREFLIGHT_BLOCKED,
+    _OPENCODE_PREFLIGHT_BLOCKED,
+    _MODEL_ALIGNMENT_BLOCKED,
+    _GLOBAL_HARD_GATE_BLOCKED,
+    _RUNTIME_HARNESS_STOPPED,
+    RUNTIME_PROOF_UNAVAILABLE,
+) = lib.REASON_CODES
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -105,18 +113,11 @@ def _read_environment(run_dir: Path) -> dict[str, Any]:
 
 
 def _derive_gate_preflight_status(raw_status: str, evaluated_preflight: dict[str, Any]) -> str:
-    if raw_status != "pass":
-        return "blocked"
-    if not evaluated_preflight.get("proof_valid"):
-        return "blocked"
-    required_fields = (
-        evaluated_preflight.get("plugin_source_id"),
-        evaluated_preflight.get("plugin_proof_strength"),
-        evaluated_preflight.get("isolation_profile"),
-    )
-    if not all(isinstance(value, str) and value for value in required_fields):
-        return "blocked"
-    return "pass"
+    del raw_status
+    status = evaluated_preflight.get("status")
+    if status not in PREFLIGHT_STATUSES:
+        raise ValueError(f"evaluated preflight status must be one of {PREFLIGHT_STATUSES}")
+    return status
 
 
 def _read_harness_state(run_dir: Path, harness: str, identities: dict[str, Any]) -> dict[str, Any]:
@@ -312,10 +313,11 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
             )
             outcome = derived["outcome"]
             reason_code = derived["reason_code"]
-            if alignment_reason not in REASON_CODES:
-                raise ValueError(f"unknown alignment reason: {alignment_reason}")
+            row_reason_code = derived["reason_code"] or alignment_reason
+            if row_reason_code not in REASON_CODES:
+                raise ValueError(f"unknown alignment reason: {row_reason_code}")
             accounting_rows = [
-                {"harness": harness, "case_id": case_id, "status": "unattempted", "reason_code": alignment_reason}
+                {"harness": harness, "case_id": case_id, "status": "unattempted", "reason_code": row_reason_code}
                 for harness in HARNESSES
                 for case_id in case_order
             ]

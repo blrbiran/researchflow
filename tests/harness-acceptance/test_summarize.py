@@ -218,9 +218,11 @@ class SummarizeTest(unittest.TestCase):
         claude_rows = [row for row in summary["accounting_rows"] if row["harness"] == "claude"]
         opencode_rows = [row for row in summary["accounting_rows"] if row["harness"] == "opencode"]
         self.assertTrue(all(row["status"] == "unattempted" for row in claude_rows + opencode_rows))
-        self.assertEqual({row["reason_code"] for row in claude_rows}, {"claude_preflight_blocked"})
-        self.assertEqual({row["reason_code"] for row in opencode_rows}, {"global_hard_gate_blocked"})
-        self.assertEqual(summary["harnesses"]["claude"]["preflight"], "blocked")
+        self.assertEqual(summary["outcome"], "blocked")
+        self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[5])
+        self.assertEqual({row["reason_code"] for row in claude_rows}, {self.summarize.lib.REASON_CODES[5]})
+        self.assertEqual({row["reason_code"] for row in opencode_rows}, {self.summarize.lib.REASON_CODES[5]})
+        self.assertEqual(summary["harnesses"]["claude"]["preflight"], "pass")
         self.assertEqual(summary["harnesses"]["claude"]["resolved_model_identity"], "openai/synthetic-model")
         self.assertFalse(summary["model_alignment"]["aligned"])
         self.assertTrue(summary["model_alignment"]["blocked"])
@@ -331,6 +333,7 @@ class SummarizeTest(unittest.TestCase):
         summary = self.summarize.build_summary(run_dir, self.cases)
         self.assertEqual(summary["outcome"], "blocked")
         self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[5])
+        self.assertEqual({row["reason_code"] for row in summary["accounting_rows"]}, {self.summarize.lib.REASON_CODES[5]})
         self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
 
     def test_build_summary_raw_preflight_block_does_not_use_runtime_proof_unavailable(self):
