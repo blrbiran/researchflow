@@ -309,6 +309,27 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual(summary["reason_code"], "global_hard_gate_blocked")
         self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
 
+    def test_build_summary_raw_preflight_block_keeps_allowlist_gap_blocked(self):
+        run_dir = self.make_run_dir()
+        blocked_preflight = copy.deepcopy(self.base_preflights["claude"])
+        blocked_preflight["status"] = "blocked"
+        write_json(run_dir / "preflight" / "claude.json", blocked_preflight)
+        for harness in ("claude", "opencode"):
+            model_proof = copy.deepcopy(self.base_model_proof)
+            model_proof["harness"] = harness
+            model_proof["backing_model_id"] = "gpt-5.5"
+            model_proof["resolved_model_identity"] = "openai/gpt-5.5"
+            model_proof["requested_route"] = "fable" if harness == "claude" else "openai/gpt-5.5"
+            write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        claude_rows = [row for row in summary["accounting_rows"] if row["harness"] == "claude"]
+        opencode_rows = [row for row in summary["accounting_rows"] if row["harness"] == "opencode"]
+        self.assertEqual(summary["outcome"], "blocked")
+        self.assertEqual(summary["reason_code"], "global_hard_gate_blocked")
+        self.assertEqual({row["reason_code"] for row in claude_rows}, {"claude_preflight_blocked"})
+        self.assertEqual({row["reason_code"] for row in opencode_rows}, {"global_hard_gate_blocked"})
+        self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
+
     def test_build_summary_marks_runtime_proof_unavailable_reason(self):
         run_dir = self.make_run_dir()
         write_json(run_dir / "preflight" / "claude.json", {**self.base_preflights["claude"], "status": "pass"})

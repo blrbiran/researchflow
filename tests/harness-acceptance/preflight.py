@@ -103,8 +103,10 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
             "reason_code": None,
             "canonical_identity": alignment["canonical_identity"],
         }
+    raw_gate_passed = bool(claude_result.get("raw_gate_passed")) and bool(opencode_result.get("raw_gate_passed"))
     if (
-        alignment["reason_code"] == GLOBAL_HARD_GATE_BLOCKED
+        raw_gate_passed
+        and alignment["reason_code"] == GLOBAL_HARD_GATE_BLOCKED
         and claude_result.get("proof_valid")
         and opencode_result.get("proof_valid")
         and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
@@ -115,7 +117,6 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
             "reason_code": GLOBAL_HARD_GATE_BLOCKED,
             "canonical_identity": None,
         }
-    raw_gate_passed = bool(claude_result.get("raw_gate_passed")) and bool(opencode_result.get("raw_gate_passed"))
     if raw_gate_passed and (not claude_result.get("proof_valid") or not opencode_result.get("proof_valid")):
         return {
             "outcome": "blocked",

@@ -185,6 +185,28 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[5])
         self.assertIsNone(result["canonical_identity"])
 
+    def test_determine_preflight_outcome_raw_preflight_block_keeps_allowlist_gap_blocked(self):
+        claude = {
+            "status": "blocked",
+            "raw_gate_passed": False,
+            "canonical_identity": None,
+            "proof_identity": "openai/gpt-5.5",
+            "proof_valid": True,
+            "allowlist_missing": True,
+        }
+        opencode = {
+            "status": "pass",
+            "raw_gate_passed": True,
+            "canonical_identity": None,
+            "proof_identity": "openai/gpt-5.5",
+            "proof_valid": True,
+            "allowlist_missing": True,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[3])
+        self.assertIsNone(result["canonical_identity"])
+
     def test_determine_preflight_outcome_does_not_mask_raw_preflight_block_with_invalid_proof(self):
         claude = {
             "status": "blocked",
