@@ -1,9 +1,9 @@
 # Harness acceptance summary
 
-- Run ID: `2026-07-19T142706Z`
+- Run ID: `2026-07-19T152433Z`
 - Run kind: `original`
 - Packaging/redaction passed: `true`
-- Raw artifact record: `local-raw/2026-07-19T142706Z` (sha256 `f3113f689ddc536b638bcac124f2884d0063b5e5f963d0a467bf55752441a9dc`, manual review `pending`, reason `raw event streams remain local`)
+- Raw artifact record: `local-raw/2026-07-19T152433Z` (sha256 `0bcd6cf7699dd4e00ef6a7527483d41573c7182c8e91b93aa050532219019e50`, manual review `pending`, reason `raw event streams remain local`)
 - This is single-run fresh-session acceptance evidence, not a stability or repeated-run estimate.
 
 ## Model alignment
@@ -23,9 +23,9 @@
 
 ### opencode
 - Preflight: `blocked`
-- Plugin proof strength: `workspace_config_static_inventory_canary` (source `researchflow-checkout`)
+- Plugin proof strength: `None` (source `researchflow-checkout`)
 - Resolved model identity: `None`
-- Isolation profile: `workspace-config-static-proof`
+- Isolation profile: `None`
 - Contamination overlay: `0` contaminated invocation(s) (`none`)
 
 ## Case accounting

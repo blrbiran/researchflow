@@ -2,16 +2,16 @@
   "auth_preserving_full_isolation": false,
   "cli_version": "1.18.3",
   "harness": "opencode",
-  "local_plugin_loading": true,
+  "local_plugin_loading": false,
   "noninteractive": true,
-  "plugin_proof_strength": "workspace_config_static_inventory_canary",
+  "plugin_proof_strength": null,
   "probe_results": {
     "debug": {
       "config": true,
-      "config_source_match": false,
+      "config_source_match": true,
       "paths": true,
       "paths_isolation_supported": true,
-      "paths_source_match": true,
+      "paths_source_match": false,
       "skill": true,
       "skill_inventory_valid": false
     },
@@ -26,10 +26,10 @@
     }
   },
   "schema_version": 1,
-  "selected_isolation_profile": "workspace-config-static-proof",
-  "selected_proof_branch": "fallback-workspace-proof",
+  "selected_isolation_profile": null,
+  "selected_proof_branch": null,
   "session_persistence_disable": true,
-  "settings_isolation": true,
+  "settings_isolation": false,
   "structured_output": true,
   "workspace_plugin_matches_checkout": true
 }

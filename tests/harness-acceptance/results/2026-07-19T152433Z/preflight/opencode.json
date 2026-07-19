@@ -1,0 +1,8 @@
+{
+  "harness": "opencode",
+  "isolation_profile": null,
+  "plugin_proof_strength": null,
+  "plugin_source_id": "researchflow-checkout",
+  "schema_version": 1,
+  "status": "blocked"
+}
