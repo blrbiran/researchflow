@@ -95,6 +95,12 @@ def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dic
 
 def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]:
     alignment = evaluate_model_alignment(claude_result, opencode_result)
+    if alignment["aligned"]:
+        return {
+            "outcome": "continuation-ready",
+            "reason_code": None,
+            "canonical_identity": alignment["canonical_identity"],
+        }
     if (
         alignment["reason_code"] == "global_hard_gate_blocked"
         and claude_result.get("proof_valid")
@@ -107,17 +113,17 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
             "reason_code": "global_hard_gate_blocked",
             "canonical_identity": None,
         }
+    if claude_result.get("proof_valid") != opencode_result.get("proof_valid"):
+        return {
+            "outcome": "blocked",
+            "reason_code": "runtime-proof-unavailable",
+            "canonical_identity": None,
+        }
     if claude_result.get("status") != "pass" or opencode_result.get("status") != "pass":
         return {
             "outcome": "blocked",
             "reason_code": alignment["reason_code"] or "global_hard_gate_blocked",
             "canonical_identity": None,
-        }
-    if alignment["aligned"]:
-        return {
-            "outcome": "continuation-ready",
-            "reason_code": None,
-            "canonical_identity": alignment["canonical_identity"],
         }
     return {
         "outcome": "blocked",

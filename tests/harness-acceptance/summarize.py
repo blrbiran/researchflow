@@ -280,6 +280,7 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
 
     preflight_statuses = {harness: states[harness]["preflight_status"] for harness in HARNESSES}
     outcome = None
+    reason_code = None
     if any(status != "pass" for status in preflight_statuses.values()):
         if progress_made:
             raise ValueError("attempted case artifacts are not allowed when any preflight is blocked")
@@ -288,14 +289,15 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
             states["opencode"]["evaluated_preflight"],
         )
         outcome = derived["outcome"]
+        reason_code = derived["reason_code"]
         accounting_rows: list[dict[str, Any]] = []
         for harness in HARNESSES:
-            reason_code = f"{harness}_preflight_blocked" if preflight_statuses[harness] == "blocked" else "global_hard_gate_blocked"
-            if reason_code not in REASON_CODES:
-                raise ValueError(f"unknown reason code: {reason_code}")
+            row_reason_code = f"{harness}_preflight_blocked" if preflight_statuses[harness] == "blocked" else "global_hard_gate_blocked"
+            if row_reason_code not in REASON_CODES:
+                raise ValueError(f"unknown reason code: {row_reason_code}")
             for case_id in case_order:
                 accounting_rows.append(
-                    {"harness": harness, "case_id": case_id, "status": "unattempted", "reason_code": reason_code}
+                    {"harness": harness, "case_id": case_id, "status": "unattempted", "reason_code": row_reason_code}
                 )
         aligned = False
         canonical_identity = None
@@ -309,6 +311,7 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
                 states["opencode"]["evaluated_preflight"],
             )
             outcome = derived["outcome"]
+            reason_code = derived["reason_code"]
             if alignment_reason not in REASON_CODES:
                 raise ValueError(f"unknown alignment reason: {alignment_reason}")
             accounting_rows = [
@@ -356,9 +359,9 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         for row in harness_rows:
             status = row["status"]
             if status == "unattempted":
-                reason_code = row.get("reason_code")
-                if reason_code not in REASON_CODES:
-                    raise ValueError(f"invalid reason code for {harness}/{row['case_id']}: {reason_code}")
+                row_reason_code = row.get("reason_code")
+                if row_reason_code not in REASON_CODES:
+                    raise ValueError(f"invalid reason code for {harness}/{row['case_id']}: {row_reason_code}")
             elif status not in VERDICTS:
                 raise ValueError(f"invalid attempted status for {harness}/{row['case_id']}: {status}")
             verdict_counts[status] += 1
@@ -402,6 +405,7 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         "case_count_per_harness": CASES_PER_HARNESS,
         "cross_harness_model_confound": not aligned,
         "outcome": outcome,
+        "reason_code": reason_code,
         "model_alignment": {
             "required": True,
             "aligned": aligned,

@@ -159,6 +159,26 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["outcome"], "allowlist-update-needed")
         self.assertEqual(result["reason_code"], "global_hard_gate_blocked")
 
+    def test_determine_preflight_outcome_marks_runtime_proof_unavailable(self):
+        claude = {
+            "status": "pass",
+            "canonical_identity": "openai/gpt-5.4",
+            "proof_identity": "openai/gpt-5.4",
+            "proof_valid": True,
+            "allowlist_missing": False,
+        }
+        opencode = {
+            "status": "pass",
+            "canonical_identity": None,
+            "proof_identity": None,
+            "proof_valid": False,
+            "allowlist_missing": False,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["reason_code"], "runtime-proof-unavailable")
+        self.assertIsNone(result["canonical_identity"])
+
     def test_determine_preflight_outcome_marks_continuation_ready(self):
         ready = {
             "status": "pass",
