@@ -122,6 +122,52 @@ def _require_sha256(value: Any, label: str) -> str:
     return text
 
 
+def inspect_model_proof(value: Any, identities: dict[str, Any]) -> dict[str, Any]:
+    try:
+        proof = _require_dict(value, "model proof")
+        if proof.get("schema_version") != 1:
+            raise ValueError("schema_version must equal 1")
+        if proof.get("proxy_kind") != "litellm":
+            raise ValueError("proxy_kind must equal litellm")
+        if proof.get("upstream_provider") != identities.get("allowed_provider"):
+            raise ValueError("provider mismatch")
+        _require_sha256(proof.get("endpoint_identity_sha256"), "endpoint_identity_sha256")
+        _require_string(proof.get("requested_route"), "requested_route")
+        backing_model_id = _require_string(proof.get("backing_model_id"), "backing_model_id")
+        resolved_model_identity = _require_string(proof.get("resolved_model_identity"), "resolved_model_identity")
+        if not resolved_model_identity.startswith("openai/"):
+            raise ValueError("resolved_model_identity must start with openai/")
+        _require_string(proof.get("proof_method"), "proof_method")
+        _require_sha256(proof.get("proof_sha256"), "proof_sha256")
+        if not _require_bool(proof.get("verified"), "verified"):
+            raise ValueError("verified must be true")
+        if not _require_bool(proof.get("redaction_passed"), "redaction_passed"):
+            raise ValueError("redaction_passed must be true")
+    except (TypeError, ValueError):
+        return {
+            "proof_valid": False,
+            "canonical_identity": None,
+            "proof_identity": value.get("resolved_model_identity") if isinstance(value, dict) else None,
+            "backing_model_id": value.get("backing_model_id") if isinstance(value, dict) else None,
+            "allowlist_missing": False,
+        }
+
+    canonical_models = identities.get("canonical_models")
+    if not isinstance(canonical_models, dict):
+        canonical_models = {}
+    canonical_identity = canonical_models.get(backing_model_id)
+    allowlist_missing = not isinstance(canonical_identity, str)
+    if canonical_identity != resolved_model_identity:
+        canonical_identity = None
+    return {
+        "proof_valid": True,
+        "canonical_identity": canonical_identity,
+        "proof_identity": resolved_model_identity,
+        "backing_model_id": backing_model_id,
+        "allowlist_missing": allowlist_missing,
+    }
+
+
 def _require_commit_sha(value: Any, label: str) -> str:
     text = _require_string(value, label)
     if not _SHA1_RE.fullmatch(text):

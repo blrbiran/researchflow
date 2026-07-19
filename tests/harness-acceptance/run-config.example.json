@@ -1,0 +1,11 @@
+{
+  "claude": {
+    "harness_model_value": "fable",
+    "effort_or_variant": "high"
+  },
+  "opencode": {
+    "harness_model_value": "openai/proxy-route",
+    "effort_or_variant": "high"
+  },
+  "timeout_seconds": 120
+}

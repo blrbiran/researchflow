@@ -29,7 +29,18 @@ def _load_lib() -> Any:
     return module
 
 
+def _load_preflight() -> Any:
+    preflight_path = DEFAULT_HARNESS_DIR / "preflight.py"
+    spec = importlib.util.spec_from_file_location("harness_acceptance_preflight", preflight_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"could not load {preflight_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 lib = _load_lib()
+preflight_contract = _load_preflight()
 load_cases = lib.load_cases
 read_json = lib.read_json
 validate_invocation = lib.validate_invocation
@@ -63,50 +74,7 @@ def _require_sha256(value: Any, label: str) -> str:
 
 
 def _inspect_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> dict[str, Any]:
-    try:
-        if not isinstance(value, dict):
-            raise ValueError("model proof must be an object")
-        if value.get("schema_version") != 1:
-            raise ValueError("schema_version must equal 1")
-        if value.get("proxy_kind") != "litellm":
-            raise ValueError("proxy_kind must equal litellm")
-        if value.get("upstream_provider") != identities.get("allowed_provider"):
-            raise ValueError("provider mismatch")
-        _require_sha256(value.get("endpoint_identity_sha256"), "endpoint_identity_sha256")
-        _require_string(value.get("requested_route"), "requested_route")
-        backing_model_id = _require_string(value.get("backing_model_id"), "backing_model_id")
-        resolved_model_identity = _require_string(value.get("resolved_model_identity"), "resolved_model_identity")
-        if not resolved_model_identity.startswith("openai/"):
-            raise ValueError("resolved_model_identity must start with openai/")
-        _require_string(value.get("proof_method"), "proof_method")
-        _require_sha256(value.get("proof_sha256"), "proof_sha256")
-        if not _require_bool(value.get("verified"), "verified"):
-            raise ValueError("verified must be true")
-        if not _require_bool(value.get("redaction_passed"), "redaction_passed"):
-            raise ValueError("redaction_passed must be true")
-    except (TypeError, ValueError):
-        return {
-            "proof_valid": False,
-            "canonical_identity": None,
-            "proof_identity": value.get("resolved_model_identity") if isinstance(value, dict) else None,
-            "backing_model_id": value.get("backing_model_id") if isinstance(value, dict) else None,
-            "allowlist_missing": False,
-        }
-
-    canonical_models = identities.get("canonical_models")
-    if not isinstance(canonical_models, dict):
-        canonical_models = {}
-    canonical_identity = canonical_models.get(backing_model_id)
-    allowlist_missing = not isinstance(canonical_identity, str)
-    if canonical_identity != resolved_model_identity:
-        canonical_identity = None
-    return {
-        "proof_valid": True,
-        "canonical_identity": canonical_identity,
-        "proof_identity": resolved_model_identity,
-        "backing_model_id": backing_model_id,
-        "allowlist_missing": allowlist_missing,
-    }
+    return lib.inspect_model_proof(value, identities)
 
 
 def validate_model_proof(value: dict[str, Any], identities: dict[str, Any]) -> Optional[str]:
@@ -136,36 +104,53 @@ def _read_environment(run_dir: Path) -> dict[str, Any]:
     return value
 
 
+def _derive_gate_preflight_status(raw_status: str, evaluated_preflight: dict[str, Any]) -> str:
+    if raw_status != "pass":
+        return "blocked"
+    if not evaluated_preflight.get("proof_valid"):
+        return "blocked"
+    required_fields = (
+        evaluated_preflight.get("plugin_source_id"),
+        evaluated_preflight.get("plugin_proof_strength"),
+        evaluated_preflight.get("isolation_profile"),
+    )
+    if not all(isinstance(value, str) and value for value in required_fields):
+        return "blocked"
+    return "pass"
+
+
 def _read_harness_state(run_dir: Path, harness: str, identities: dict[str, Any]) -> dict[str, Any]:
     capability = _read_json(run_dir / "capabilities" / f"{harness}.json")
     preflight = _read_json(run_dir / "preflight" / f"{harness}.json")
     model_proof = _read_json(run_dir / "preflight" / f"{harness}-model-proof.json")
-    preflight_status = _require_string(preflight.get("status"), f"preflight.{harness}.status")
-    if preflight_status not in PREFLIGHT_STATUSES:
+    raw_preflight_status = _require_string(preflight.get("status"), f"preflight.{harness}.status")
+    if raw_preflight_status not in PREFLIGHT_STATUSES:
         raise ValueError(f"preflight.{harness}.status must be one of {PREFLIGHT_STATUSES}")
-    plugin_proof_strength = preflight.get("plugin_proof_strength", capability.get("plugin_proof_strength"))
-    isolation_profile = preflight.get("isolation_profile", capability.get("selected_isolation_profile"))
-    preflight_plugin_source_id = preflight.get("plugin_source_id")
+    evaluated_preflight = preflight_contract.evaluate_preflight(capability, preflight, model_proof, identities)
+    plugin_proof_strength = evaluated_preflight.get("plugin_proof_strength")
     if not isinstance(plugin_proof_strength, str) or not plugin_proof_strength:
-        raise ValueError(f"{harness} plugin_proof_strength missing")
+        plugin_proof_strength = None
+    isolation_profile = evaluated_preflight.get("isolation_profile")
     if not isinstance(isolation_profile, str) or not isolation_profile:
-        raise ValueError(f"{harness} isolation_profile missing")
-    if preflight_plugin_source_id is not None:
-        preflight_plugin_source_id = _require_string(preflight_plugin_source_id, f"preflight.{harness}.plugin_source_id")
-    inspected = _inspect_model_proof(model_proof, identities)
+        isolation_profile = None
+    preflight_plugin_source_id = evaluated_preflight.get("plugin_source_id")
+    if not isinstance(preflight_plugin_source_id, str) or not preflight_plugin_source_id:
+        preflight_plugin_source_id = None
+    gate_preflight_status = _derive_gate_preflight_status(raw_preflight_status, evaluated_preflight)
     return {
         "capability": capability,
         "preflight": preflight,
-        "preflight_status": preflight_status,
+        "evaluated_preflight": evaluated_preflight,
+        "preflight_status": gate_preflight_status,
         "plugin_proof_strength": plugin_proof_strength,
         "isolation_profile": isolation_profile,
         "preflight_plugin_source_id": preflight_plugin_source_id,
         "model_proof": model_proof,
-        "validated_identity": inspected["canonical_identity"],
-        "proof_identity": inspected["proof_identity"],
-        "proof_valid": inspected["proof_valid"],
-        "backing_model_id": inspected["backing_model_id"],
-        "allowlist_missing": inspected["allowlist_missing"],
+        "validated_identity": evaluated_preflight["canonical_identity"],
+        "proof_identity": evaluated_preflight["proof_identity"],
+        "proof_valid": evaluated_preflight["proof_valid"],
+        "backing_model_id": evaluated_preflight["backing_model_id"],
+        "allowlist_missing": evaluated_preflight["allowlist_missing"],
     }
 
 
@@ -228,16 +213,13 @@ def _read_attempted_cases(run_dir: Path, harness: str) -> dict[str, dict[str, An
 
 
 def _alignment_reason(states: dict[str, dict[str, Any]]) -> tuple[bool, Optional[str], str]:
-    validated = [states[h]["validated_identity"] for h in HARNESSES]
-    if all(isinstance(item, str) for item in validated) and validated[0] == validated[1]:
-        return True, validated[0], "aligned"
-    proofs_same_openai = all(
-        states[h]["proof_valid"] and isinstance(states[h]["proof_identity"], str) and states[h]["proof_identity"].startswith("openai/")
-        for h in HARNESSES
-    ) and states["claude"]["proof_identity"] == states["opencode"]["proof_identity"]
-    if proofs_same_openai and any(states[h]["allowlist_missing"] for h in HARNESSES):
-        return False, None, "global_hard_gate_blocked"
-    return False, None, "model_alignment_blocked"
+    alignment = preflight_contract.evaluate_model_alignment(
+        states["claude"]["evaluated_preflight"],
+        states["opencode"]["evaluated_preflight"],
+    )
+    if alignment["aligned"]:
+        return True, alignment["canonical_identity"], "aligned"
+    return False, None, alignment["reason_code"]
 
 
 def _validate_prefix(case_order: list[str], attempted: dict[str, dict[str, Any]], harness: str) -> int:
@@ -262,7 +244,12 @@ def _validate_prefix(case_order: list[str], attempted: dict[str, dict[str, Any]]
     return prefix_len
 
 
-def _resolve_plugin_source_id(harness: str, attempted: dict[str, dict[str, Any]], state: dict[str, Any]) -> str:
+def _resolve_plugin_source_id(
+    harness: str,
+    attempted: dict[str, dict[str, Any]],
+    state: dict[str, Any],
+    allow_missing: bool = False,
+) -> Optional[str]:
     preflight_source_id = state.get("preflight_plugin_source_id")
     attempted_source_ids = {row["plugin_source_id"] for row in attempted.values()}
     if len(attempted_source_ids) > 1:
@@ -275,7 +262,7 @@ def _resolve_plugin_source_id(harness: str, attempted: dict[str, dict[str, Any]]
                 f"{preflight_source_id} != {attempted_source_id}"
             )
         return attempted_source_id
-    if preflight_source_id is None:
+    if preflight_source_id is None and not allow_missing:
         raise ValueError(f"{harness} plugin_source_id missing from preflight proof")
     return preflight_source_id
 
@@ -368,7 +355,12 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
                 contaminated_case_ids.append(row["case_id"])
         if sum(verdict_counts.values()) != CASES_PER_HARNESS:
             verdict_counts_valid = False
-        plugin_source_id = _resolve_plugin_source_id(harness, attempted[harness], states[harness])
+        plugin_source_id = _resolve_plugin_source_id(
+            harness,
+            attempted[harness],
+            states[harness],
+            allow_missing=not attempted[harness] and states[harness]["preflight_status"] == "blocked",
+        )
         harness_summaries[harness] = {
             "preflight": states[harness]["preflight_status"],
             "plugin_proof_strength": states[harness]["plugin_proof_strength"],

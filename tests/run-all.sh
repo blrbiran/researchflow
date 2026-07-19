@@ -2,7 +2,10 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
-printf '==> Running OpenCode smoke test\n'
+printf '==> Running harness acceptance synthetic tests\n'
+"$ROOT/tests/harness-acceptance/run-tests.sh"
+
+printf '\n==> Running OpenCode smoke test\n'
 "$ROOT/tests/opencode/run-tests.sh"
 
 printf '\n==> Running Claude Code smoke test\n'
