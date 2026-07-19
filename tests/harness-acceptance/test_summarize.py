@@ -330,7 +330,25 @@ class SummarizeTest(unittest.TestCase):
 
         summary = self.summarize.build_summary(run_dir, self.cases)
         self.assertEqual(summary["outcome"], "blocked")
-        self.assertEqual(summary["reason_code"], "runtime-proof-unavailable")
+        self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[5])
+        self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
+
+    def test_build_summary_raw_preflight_block_does_not_use_runtime_proof_unavailable(self):
+        run_dir = self.make_run_dir()
+        blocked_preflight = copy.deepcopy(self.base_preflights["claude"])
+        blocked_preflight["status"] = "blocked"
+        write_json(run_dir / "preflight" / "claude.json", blocked_preflight)
+
+        invalid_proof = copy.deepcopy(self.base_model_proof)
+        invalid_proof["harness"] = "claude"
+        invalid_proof.pop("proof_sha256")
+        write_json(run_dir / "preflight" / "claude-model-proof.json", invalid_proof)
+
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        claude_rows = [row for row in summary["accounting_rows"] if row["harness"] == "claude"]
+        self.assertEqual(summary["outcome"], "blocked")
+        self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[3])
+        self.assertEqual({row["reason_code"] for row in claude_rows}, {self.summarize.lib.REASON_CODES[0]})
         self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
 
     def test_build_summary_runtime_stop_marks_remaining_rows(self):

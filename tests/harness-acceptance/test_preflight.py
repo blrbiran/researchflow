@@ -143,6 +143,7 @@ class PreflightTest(unittest.TestCase):
     def test_determine_preflight_outcome_marks_allowlist_update_needed(self):
         claude = {
             "status": "pass",
+            "raw_gate_passed": True,
             "canonical_identity": None,
             "proof_identity": "openai/gpt-5.5",
             "proof_valid": True,
@@ -150,6 +151,7 @@ class PreflightTest(unittest.TestCase):
         }
         opencode = {
             "status": "pass",
+            "raw_gate_passed": True,
             "canonical_identity": None,
             "proof_identity": "openai/gpt-5.5",
             "proof_valid": True,
@@ -157,18 +159,20 @@ class PreflightTest(unittest.TestCase):
         }
         result = self.preflight.determine_preflight_outcome(claude, opencode)
         self.assertEqual(result["outcome"], "allowlist-update-needed")
-        self.assertEqual(result["reason_code"], "global_hard_gate_blocked")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[3])
 
     def test_determine_preflight_outcome_marks_runtime_proof_unavailable(self):
         claude = {
             "status": "pass",
+            "raw_gate_passed": True,
             "canonical_identity": "openai/gpt-5.4",
             "proof_identity": "openai/gpt-5.4",
             "proof_valid": True,
             "allowlist_missing": False,
         }
         opencode = {
-            "status": "pass",
+            "status": "blocked",
+            "raw_gate_passed": True,
             "canonical_identity": None,
             "proof_identity": None,
             "proof_valid": False,
@@ -176,12 +180,35 @@ class PreflightTest(unittest.TestCase):
         }
         result = self.preflight.determine_preflight_outcome(claude, opencode)
         self.assertEqual(result["outcome"], "blocked")
-        self.assertEqual(result["reason_code"], "runtime-proof-unavailable")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[5])
+        self.assertIsNone(result["canonical_identity"])
+
+    def test_determine_preflight_outcome_does_not_mask_raw_preflight_block_with_invalid_proof(self):
+        claude = {
+            "status": "blocked",
+            "raw_gate_passed": False,
+            "canonical_identity": None,
+            "proof_identity": None,
+            "proof_valid": False,
+            "allowlist_missing": False,
+        }
+        opencode = {
+            "status": "pass",
+            "raw_gate_passed": True,
+            "canonical_identity": "openai/gpt-5.4",
+            "proof_identity": "openai/gpt-5.4",
+            "proof_valid": True,
+            "allowlist_missing": False,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[3])
         self.assertIsNone(result["canonical_identity"])
 
     def test_determine_preflight_outcome_marks_continuation_ready(self):
         ready = {
             "status": "pass",
+            "raw_gate_passed": True,
             "canonical_identity": "openai/synthetic-model",
             "proof_identity": "openai/synthetic-model",
             "proof_valid": True,

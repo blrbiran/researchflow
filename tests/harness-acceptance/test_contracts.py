@@ -24,6 +24,7 @@ EXPECTED_REASON_CODES = (
     "model_alignment_blocked",
     "global_hard_gate_blocked",
     "runtime_harness_stopped",
+    "runtime-proof-unavailable",
 )
 EXPECTED_CASES = [
     {
