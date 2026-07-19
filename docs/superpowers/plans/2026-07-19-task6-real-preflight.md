@@ -56,7 +56,7 @@
 - `tests/harness-acceptance/run-tests.sh` — synthetic harness-acceptance baseline to rerun before and after any allowlist update.
 - `tests/run-all.sh` — repository synthetic baseline to rerun before any real preflight and after any allowlist update.
 
-### Task 1: Encode Task 6 outcome semantics and machine-readable blocked outcomes
+### Task 1: Encode `runtime-proof-unavailable` and machine-readable blocked reasons
 
 **Files:**
 - Modify: `tests/harness-acceptance/preflight.py`
@@ -66,13 +66,13 @@
 
 **Interfaces:**
 - Produces: `determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]`
-- Produces: summary field `outcome: str` for blocked-style preflight runs
+- Produces: summary fields `outcome: str` and `reason_code: str | None` for blocked-style preflight runs
 - Consumes: `evaluate_preflight(...)`
 - Consumes: `evaluate_model_alignment(...)`
 
 - [ ] **Step 1: Write the failing preflight and summary tests**
 
-Add this test to `tests/harness-acceptance/test_preflight.py`:
+Add these tests to `tests/harness-acceptance/test_preflight.py`:
 
 ```python
 def test_determine_preflight_outcome_marks_allowlist_update_needed(self):
@@ -95,6 +95,27 @@ def test_determine_preflight_outcome_marks_allowlist_update_needed(self):
     self.assertEqual(result["reason_code"], "global_hard_gate_blocked")
 
 
+def test_determine_preflight_outcome_marks_runtime_proof_unavailable(self):
+    claude = {
+        "status": "pass",
+        "canonical_identity": "openai/gpt-5.4",
+        "proof_identity": "openai/gpt-5.4",
+        "proof_valid": True,
+        "allowlist_missing": False,
+    }
+    opencode = {
+        "status": "pass",
+        "canonical_identity": None,
+        "proof_identity": None,
+        "proof_valid": False,
+        "allowlist_missing": False,
+    }
+    result = self.preflight.determine_preflight_outcome(claude, opencode)
+    self.assertEqual(result["outcome"], "blocked")
+    self.assertEqual(result["reason_code"], "runtime-proof-unavailable")
+    self.assertIsNone(result["canonical_identity"])
+
+
 def test_determine_preflight_outcome_marks_continuation_ready(self):
     ready = {
         "status": "pass",
@@ -108,7 +129,7 @@ def test_determine_preflight_outcome_marks_continuation_ready(self):
     self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
 ```
 
-Add this test to `tests/harness-acceptance/test_summarize.py`:
+Add these tests to `tests/harness-acceptance/test_summarize.py`:
 
 ```python
 def test_build_summary_marks_allowlist_update_needed_outcome(self):
@@ -122,6 +143,33 @@ def test_build_summary_marks_allowlist_update_needed_outcome(self):
         write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
     summary = self.summarize.build_summary(run_dir, self.cases)
     self.assertEqual(summary["outcome"], "allowlist-update-needed")
+    self.assertEqual(summary["reason_code"], "global_hard_gate_blocked")
+
+
+def test_build_summary_marks_runtime_proof_unavailable_reason(self):
+    run_dir = self.make_run_dir()
+    write_json(run_dir / "preflight" / "claude.json", {**self.base_preflight["claude"], "status": "pass"})
+    write_json(run_dir / "preflight" / "opencode.json", {**self.base_preflight["opencode"], "status": "pass"})
+
+    claude_proof = copy.deepcopy(self.base_model_proof)
+    claude_proof["harness"] = "claude"
+    claude_proof["backing_model_id"] = "gpt-5.4"
+    claude_proof["resolved_model_identity"] = "openai/gpt-5.4"
+    claude_proof["requested_route"] = "sonnet"
+    write_json(run_dir / "preflight" / "claude-model-proof.json", claude_proof)
+
+    opencode_proof = copy.deepcopy(self.base_model_proof)
+    opencode_proof["harness"] = "opencode"
+    opencode_proof["backing_model_id"] = "unknown"
+    opencode_proof["resolved_model_identity"] = None
+    opencode_proof["verified"] = False
+    opencode_proof["proof_method"] = "missing-model-metadata"
+    opencode_proof["requested_route"] = "openai-compatible/gpt-5.4"
+    write_json(run_dir / "preflight" / "opencode-model-proof.json", opencode_proof)
+
+    summary = self.summarize.build_summary(run_dir, self.cases)
+    self.assertEqual(summary["outcome"], "blocked")
+    self.assertEqual(summary["reason_code"], "runtime-proof-unavailable")
     self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
 ```
 
@@ -169,6 +217,12 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
             "reason_code": "global_hard_gate_blocked",
             "canonical_identity": None,
         }
+    if claude_result.get("proof_valid") != opencode_result.get("proof_valid"):
+        return {
+            "outcome": "blocked",
+            "reason_code": "runtime-proof-unavailable",
+            "canonical_identity": None,
+        }
     return {
         "outcome": "blocked",
         "reason_code": alignment["reason_code"] or "model_alignment_blocked",
@@ -176,28 +230,32 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
     }
 ```
 
-In `tests/harness-acceptance/summarize.py`, derive and expose `outcome` only for blocked-style preflight results:
+In `tests/harness-acceptance/summarize.py`, derive and expose blocked-style `outcome` and `reason_code` from the shared helper:
 
 ```python
     outcome = None
+    reason_code = None
     if any(status != "pass" for status in preflight_statuses.values()):
         derived = preflight_contract.determine_preflight_outcome(
             states["claude"]["evaluated_preflight"],
             states["opencode"]["evaluated_preflight"],
         )
         outcome = derived["outcome"]
+        reason_code = derived["reason_code"]
     elif not aligned:
         derived = preflight_contract.determine_preflight_outcome(
             states["claude"]["evaluated_preflight"],
             states["opencode"]["evaluated_preflight"],
         )
         outcome = derived["outcome"]
+        reason_code = derived["reason_code"]
 ```
 
-and include it in the returned summary payload:
+and include both fields in the returned summary payload:
 
 ```python
         "outcome": outcome,
+        "reason_code": reason_code,
 ```
 
 Do not add a continuation-ready summary file path here; Task 6 continuation-ready runs still stop at preflight artifacts plus baseline.
@@ -439,6 +497,7 @@ Expected:
   - `blocked`
   - `allowlist-update-needed`
   - `continuation-ready`
+- when `outcome` is `blocked`, the JSON also carries a machine-readable `reason_code`; one allowed blocked sub-reason is `runtime-proof-unavailable`
 
 - [ ] **Step 6: If the outcome is blocked or allowlist-update-needed, write and verify the blocked summary**
 
@@ -454,8 +513,9 @@ python3 -m json.tool "tests/harness-acceptance/results/$RUN_ID/preflight/opencod
 
 Expected:
 - summary write/check succeeds
-- summary includes the correct blocked outcome marker
+- summary includes the correct blocked outcome marker and blocked `reason_code`
 - redacted model proofs are readable and self-consistent
+- if Claude proves a canonical identity while OpenCode passes capability/preflight but lacks authoritative runtime model proof, the run remains `blocked` with `reason_code = runtime-proof-unavailable`
 
 - [ ] **Step 7: If the outcome is continuation-ready, validate the preflight basis without final summary artifacts**
 
@@ -476,6 +536,8 @@ Expected:
 - no final summary artifacts are required for this branch
 
 - [ ] **Step 8: If the outcome is allowlist-update-needed, commit the blocked evidence first, update the allowlist in a separate commit, then rerun preflight with a new run ID**
+
+`runtime-proof-unavailable` does not enter the allowlist path. It is a final blocked evidence state unless later code changes create a new authoritative runtime proof surface and a brand new Task 6 run is started.
 
 When outcome is `allowlist-update-needed`, first commit the blocked evidence:
 
@@ -544,9 +606,9 @@ If the allowlist path used `NEW_RUN_ID`, substitute that final run id in the com
 
 ### Spec coverage
 
-- Task 1 encodes the three Task 6 terminal outcomes and the required blocked-vs-allowlist distinction.
+- Task 1 preserves the three Task 6 terminal outcomes, adds the required `runtime-proof-unavailable` blocked sub-reason, and keeps blocked-vs-allowlist distinction machine-readable.
 - Task 2 adds a read-only validation path for continuation-ready preflight runs that do not write final summaries.
-- Task 3 covers the real operator workflow, redaction, blocked summary writing, manual proof review, strict allowlist rerun handling, and final evidence commit.
+- Task 3 covers the real operator workflow, redaction, blocked summary writing, manual proof review, `runtime-proof-unavailable` blocked handling, strict allowlist rerun handling, and final evidence commit.
 - No task introduces scored case execution, router changes, workflow-contract changes, or push/release work.
 
 ### Placeholder scan

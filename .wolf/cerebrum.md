@@ -17,6 +17,7 @@
 - Reference-library layouts differ: `academic-research-skills` duplicates skills at root and `skills/`, while `gstack` keeps skill directories at repository root with no `skills/` directory. Follow symlinks with `find -L` when inventorying them.
 - For live-harness Task 4, reuse the existing dirty draft and preserve the thin-adapter boundary: shell captures native CLI evidence; Python owns parsing, normalization, validation, and fail-closed capability selection.
 - For Task 5, prefer the minimum-change path: keep `preflight.py` focused on preflight/alignment judgment, keep `run.py` thin and stateful, and prioritize blocked 14-row accounting plus synthetic-only safety over structural cleanup.
+- For Task 6 review cleanup, treat harness preflight `status` as raw gate pass only; keep proof validity and canonical identity separate so summary/outcome logic can derive `runtime-proof-unavailable` coherently.
 
 ## Do-Not-Repeat
 
