@@ -1,0 +1,13 @@
+{
+  "deviations": [],
+  "manual_notes": [],
+  "raw_artifacts": {
+    "manual_review_status": "pending",
+    "reason_not_committed": "raw event streams remain local",
+    "relative_id": "local-raw/2026-07-19T142706Z",
+    "sha256": "f3113f689ddc536b638bcac124f2884d0063b5e5f963d0a467bf55752441a9dc"
+  },
+  "redaction_passed": true,
+  "run_id": "2026-07-19T142706Z",
+  "run_kind": "original"
+}

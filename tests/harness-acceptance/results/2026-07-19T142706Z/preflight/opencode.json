@@ -1,0 +1,8 @@
+{
+  "harness": "opencode",
+  "isolation_profile": "workspace-config-static-proof",
+  "plugin_proof_strength": "workspace_config_static_inventory_canary",
+  "plugin_source_id": "researchflow-checkout",
+  "schema_version": 1,
+  "status": "pass"
+}
