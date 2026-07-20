@@ -565,15 +565,17 @@ The minimum evidence is adapter-side schema validation of the plugin/marketplace
 
 OpenCode may record the stronger value `resolved_runtime_source_inventory_canary` when its resolved config and skill inventory are available. Summary must disclose this proof-strength asymmetry and must not imply equivalent runtime proof.
 
-### 7.4 OpenCode capability-proved proof branches
+### 7.4 OpenCode capability-proved source branch and proof strength
 
 OpenCode capability probe checks `debug config`, `debug paths`, and `debug skill` independently. No specific debug subcommand is assumed across builds.
 
+Under the revised contract, capability pass records `selected_proof_branch = "workspace-repo-canary-proof"` when repo static proof, workspace proof, and canary success hold. `plugin_proof_strength` then discloses how much supporting debug evidence was actually observed.
+
 **Strong runtime proof** uses all three supported debug surfaces to record resolved plugin source, effective paths, runtime skill inventory, and canary. It records `plugin_proof_strength = "resolved_runtime_source_inventory_canary"`.
 
-**Fallback workspace proof** is allowed when any debug surface is unavailable. It requires the isolated workspace's minimal `opencode.json`, plugin path to the current checkout, checkout SHA, adapter-side validation of `.opencode/plugins/researchflow.js`, static ResearchFlow skill inventory, all available debug evidence, and a real `opencode run` canary. It records `plugin_proof_strength = "workspace_config_static_inventory_canary"`.
+**Fallback workspace proof** is used when capability passes but one or more debug surfaces are unavailable or inconclusive. It requires the isolated workspace's minimal `opencode.json`, plugin path to the current checkout, checkout SHA, adapter-side validation of `.opencode/plugins/researchflow.js`, static ResearchFlow skill inventory, all available debug evidence, and a real `opencode run` canary. It records `plugin_proof_strength = "workspace_config_static_inventory_canary"`.
 
-If neither branch establishes the source, inventory, and canary evidence, OpenCode preflight is `blocked`.
+If repo proof, workspace proof, or canary evidence is missing, OpenCode preflight is `blocked`.
 
 ### 7.5 OpenCode isolation profile
 
@@ -625,7 +627,7 @@ For each harness, preflight must establish all of:
 
 For Claude Code, proof follows the selected direct-plugin-dir or local-marketplace branch. If no runtime resolved-source/inventory surface exists, the recorded proof strength is `best_available_source_plus_canary`, not equivalent to OpenCode runtime proof.
 
-For OpenCode, proof follows the strong runtime or fallback workspace branch selected by capability probe. Missing debug surfaces reduce proof strength but do not block a complete fallback bundle.
+For OpenCode, capability selection uses the revised `workspace-repo-canary-proof` branch, while `plugin_proof_strength` distinguishes strong runtime proof from fallback workspace proof. Missing debug surfaces reduce proof strength but do not block a complete fallback bundle.
 
 ### 8.2 Canary prompt
 

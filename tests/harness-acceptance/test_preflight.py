@@ -193,13 +193,14 @@ class PreflightTest(unittest.TestCase):
         opencode_capability = copy.deepcopy(self.capability["opencode"])
         opencode_capability["selected_proof_branch"] = "workspace-repo-canary-proof"
         opencode_capability["selected_isolation_profile"] = "workspace-config-runtime-proof"
+        opencode_capability["plugin_proof_strength"] = "workspace_config_static_inventory_canary"
         opencode_capability.setdefault("probe_results", {}).setdefault("debug", {})["paths_source_match"] = False
         opencode_capability["probe_results"]["debug"]["skill_inventory_valid"] = False
 
         opencode_preflight = copy.deepcopy(self.base_preflight["opencode"])
         opencode_preflight["status"] = "pass"
         opencode_preflight["isolation_profile"] = "workspace-config-runtime-proof"
-        opencode_preflight["plugin_proof_strength"] = "resolved_runtime_source_inventory_canary"
+        opencode_preflight["plugin_proof_strength"] = "workspace_config_static_inventory_canary"
 
         opencode_model_proof = copy.deepcopy(self.base_model_proof)
         opencode_model_proof["harness"] = "opencode"
@@ -225,6 +226,7 @@ class PreflightTest(unittest.TestCase):
 
         self.assertTrue(opencode_result["raw_gate_passed"])
         self.assertEqual(opencode_result["status"], "pass")
+        self.assertEqual(opencode_result["plugin_proof_strength"], "workspace_config_static_inventory_canary")
         self.assertFalse(opencode_result["proof_valid"])
         self.assertEqual(outcome["outcome"], "blocked")
         self.assertEqual(outcome["reason_code"], self.preflight.lib.REASON_CODES[5])

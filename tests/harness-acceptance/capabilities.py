@@ -28,6 +28,7 @@ OPENCODE_RUNTIME_PROFILE = "workspace-config-runtime-proof"
 
 CLAUDE_PROOF_STRENGTH = "best_available_source_plus_canary"
 OPENCODE_RUNTIME_PROOF_STRENGTH = "resolved_runtime_source_inventory_canary"
+OPENCODE_STATIC_PROOF_STRENGTH = "workspace_config_static_inventory_canary"
 
 CANARY_MARKER = "RESEARCHFLOW_BOOTSTRAP_ACTIVE"
 DEFAULT_PLUGIN_SOURCE_ID = "researchflow-checkout"
@@ -513,14 +514,34 @@ def select_isolation_profile(probe: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _opencode_plugin_proof_strength(probe: dict[str, Any]) -> Optional[str]:
+    branch = select_opencode_proof_branch(probe)
+    if branch != OPENCODE_CAPABILITY_BRANCH:
+        return None
+    probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
+    debug = probe_results.get("debug") if isinstance(probe_results, dict) else None
+    if not isinstance(debug, dict):
+        return OPENCODE_STATIC_PROOF_STRENGTH
+    strong_runtime_debug_evidence = (
+        _truthy(debug.get("config"))
+        and _truthy(debug.get("config_source_match"))
+        and _truthy(debug.get("paths"))
+        and _truthy(debug.get("paths_source_match"))
+        and _truthy(debug.get("paths_isolation_supported"))
+        and _truthy(debug.get("skill"))
+        and _truthy(debug.get("skill_inventory_valid"))
+    )
+    if strong_runtime_debug_evidence:
+        return OPENCODE_RUNTIME_PROOF_STRENGTH
+    return OPENCODE_STATIC_PROOF_STRENGTH
+
+
 def _plugin_proof_strength_for_probe(probe: dict[str, Any]) -> Optional[str]:
     harness = probe.get("harness")
     if harness == "claude":
         return CLAUDE_PROOF_STRENGTH if select_claude_load_branch(probe) else None
     if harness == "opencode":
-        branch = select_opencode_proof_branch(probe)
-        if branch == OPENCODE_CAPABILITY_BRANCH:
-            return OPENCODE_RUNTIME_PROOF_STRENGTH
+        return _opencode_plugin_proof_strength(probe)
     return None
 
 

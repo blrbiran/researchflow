@@ -95,6 +95,13 @@ class CapabilitiesTest(unittest.TestCase):
             "workspace-repo-canary-proof",
         )
 
+    def test_build_capability_record_discloses_opencode_strong_vs_weak_proof_strength_honestly(self):
+        strong_record = self.capabilities.build_capability_record("opencode", "1.18.3", self.fixtures["opencode_strong"])
+        weak_record = self.capabilities.build_capability_record("opencode", "1.18.3", self.fixtures["opencode_fallback"])
+        self.assertEqual(strong_record["plugin_proof_strength"], "resolved_runtime_source_inventory_canary")
+        self.assertEqual(weak_record["plugin_proof_strength"], "workspace_config_static_inventory_canary")
+        self.assertEqual(weak_record["selected_proof_branch"], "workspace-repo-canary-proof")
+
     def test_build_capability_record_discloses_optional_claude_validation(self):
         probe = clone_json(self.fixtures["claude_direct"])
         probe["probe_results"]["cli_validation"] = {"supported": True, "passed": True}

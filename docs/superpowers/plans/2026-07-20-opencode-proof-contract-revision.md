@@ -289,13 +289,32 @@ if harness == "opencode":
         return OPENCODE_RUNTIME_PROFILE
 ```
 
-Also update `_plugin_proof_strength_for_probe()` so it returns the runtime proof strength whenever the revised capability branch is selected:
+Also update `_plugin_proof_strength_for_probe()` so capability pass no longer overstates weak diagnostic evidence. Add an OpenCode helper that preserves `resolved_runtime_source_inventory_canary` only for full resolved debug evidence and returns `workspace_config_static_inventory_canary` for capability-pass weak-diagnostic cases:
 
 ```python
-if harness == "opencode":
+def _opencode_plugin_proof_strength(probe: dict[str, Any]) -> Optional[str]:
     branch = select_opencode_proof_branch(probe)
-    if branch == OPENCODE_CAPABILITY_BRANCH:
+    if branch != OPENCODE_CAPABILITY_BRANCH:
+        return None
+    probe_results = probe.get("probe_results") if isinstance(probe, dict) else None
+    debug = probe_results.get("debug") if isinstance(probe_results, dict) else None
+    if not isinstance(debug, dict):
+        return OPENCODE_STATIC_PROOF_STRENGTH
+    strong_runtime_debug_evidence = (
+        _truthy(debug.get("config"))
+        and _truthy(debug.get("config_source_match"))
+        and _truthy(debug.get("paths"))
+        and _truthy(debug.get("paths_source_match"))
+        and _truthy(debug.get("paths_isolation_supported"))
+        and _truthy(debug.get("skill"))
+        and _truthy(debug.get("skill_inventory_valid"))
+    )
+    if strong_runtime_debug_evidence:
         return OPENCODE_RUNTIME_PROOF_STRENGTH
+    return OPENCODE_STATIC_PROOF_STRENGTH
+
+if harness == "opencode":
+    return _opencode_plugin_proof_strength(probe)
 ```
 
 - [ ] **Step 4: Preserve diagnostic fields without promoting them back to hard gates**
@@ -370,7 +389,7 @@ def test_revised_opencode_capability_pass_still_blocks_on_runtime_proof_unavaila
     opencode_preflight = copy.deepcopy(self.base_preflight["opencode"])
     opencode_preflight["status"] = "pass"
     opencode_preflight["isolation_profile"] = "workspace-config-runtime-proof"
-    opencode_preflight["plugin_proof_strength"] = "resolved_runtime_source_inventory_canary"
+    opencode_preflight["plugin_proof_strength"] = "workspace_config_static_inventory_canary"
 
     opencode_model_proof = copy.deepcopy(self.base_model_proof)
     opencode_model_proof["harness"] = "opencode"
@@ -396,6 +415,7 @@ def test_revised_opencode_capability_pass_still_blocks_on_runtime_proof_unavaila
 
     self.assertTrue(opencode_result["raw_gate_passed"])
     self.assertEqual(opencode_result["status"], "pass")
+    self.assertEqual(opencode_result["plugin_proof_strength"], "workspace_config_static_inventory_canary")
     self.assertFalse(opencode_result["proof_valid"])
     self.assertEqual(outcome["outcome"], "blocked")
     self.assertEqual(outcome["reason_code"], self.preflight.lib.REASON_CODES[5])

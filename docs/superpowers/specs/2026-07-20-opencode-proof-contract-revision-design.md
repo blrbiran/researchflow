@@ -17,6 +17,7 @@ This revision keeps the existing Task 6 and Task 7 top-level lifecycle intact wh
 
 - capability/plugin proof becomes a narrower raw gate based on repo proof, workspace proof, and canary execution;
 - debug surfaces remain collected as diagnostics but no longer decide raw pass/fail;
+- plugin proof strength still reflects the evidence actually observed: full resolved debug evidence may record `resolved_runtime_source_inventory_canary`, while capability-pass weak-diagnostic cases must record the weaker `workspace_config_static_inventory_canary`;
 - authoritative runtime model proof remains a separate hard gate;
 - missing authoritative runtime model proof continues to classify as `blocked` with `reason_code = runtime-proof-unavailable`.
 
@@ -113,6 +114,8 @@ They may still be used to:
 
 They must not be used as sole proof for checkout/source match or for runtime skill activation in final gating logic.
 
+When capability/plugin proof passes without full resolved debug surfaces, the branch may still be `workspace-repo-canary-proof`, but the recorded `plugin_proof_strength` must remain `workspace_config_static_inventory_canary`. Only runs with full resolved source, paths, and skill evidence may record `resolved_runtime_source_inventory_canary`.
+
 ### 4.4 Runtime model proof semantics remain strict
 
 Authoritative runtime model proof remains unchanged in principle:
@@ -199,6 +202,7 @@ Update the OpenCode capability tests so they encode the revised contract:
 
 - cases with `paths_source_match = false` do not fail by default if repo/workspace/canary proof holds;
 - cases with `skill_inventory_valid = false` do not fail by default if repo/workspace/canary proof holds;
+- weak-diagnostic capability-pass cases record `workspace_config_static_inventory_canary`, not `resolved_runtime_source_inventory_canary`;
 - capability-failure tests continue to fail when repo proof, workspace proof, or canary proof is absent.
 
 At least one synthetic test must encode the observed real-world OpenCode shape where debug diagnostics are weak but capability proof still succeeds.

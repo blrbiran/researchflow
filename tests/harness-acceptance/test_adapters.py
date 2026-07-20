@@ -172,7 +172,7 @@ class AdapterTest(unittest.TestCase):
             fallback_capability = read_json(fallback_output / "opencode.json")
             self.assertEqual(fallback_capability["selected_proof_branch"], "workspace-repo-canary-proof")
             self.assertEqual(fallback_capability["selected_isolation_profile"], "workspace-config-runtime-proof")
-            self.assertEqual(fallback_capability["plugin_proof_strength"], "resolved_runtime_source_inventory_canary")
+            self.assertEqual(fallback_capability["plugin_proof_strength"], "workspace_config_static_inventory_canary")
 
     def test_opencode_capability_mode_does_not_fallback_on_negative_available_debug_surface(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -190,7 +190,7 @@ class AdapterTest(unittest.TestCase):
             capability = read_json(output_dir / "opencode.json")
             self.assertEqual(capability["selected_proof_branch"], "workspace-repo-canary-proof")
             self.assertEqual(capability["selected_isolation_profile"], "workspace-config-runtime-proof")
-            self.assertEqual(capability["plugin_proof_strength"], "resolved_runtime_source_inventory_canary")
+            self.assertEqual(capability["plugin_proof_strength"], "workspace_config_static_inventory_canary")
             self.assertFalse(capability["probe_results"]["debug"]["config_source_match"])
             self.assertTrue(capability["probe_results"]["debug"]["paths"])
             self.assertTrue(capability["probe_results"]["debug"]["paths_source_match"])
@@ -263,6 +263,7 @@ class AdapterTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             invocation = read_json(output_dir / "invocation.json")
             self.assertEqual(invocation["isolation_profile"], "workspace-config-runtime-proof")
+            self.assertEqual(invocation["plugin_proof_strength"], "workspace_config_static_inventory_canary")
             self.assertEqual(invocation["tool_execution"]["attempted_tools"], ["web_fetch"])
             self.assertEqual(invocation["tool_execution"]["side_effect_status"], "blocked")
             self.assertTrue(invocation["tool_execution"]["audit_complete"])
