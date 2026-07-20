@@ -1,7 +1,7 @@
 # ResearchFlow OpenCode Proof Contract Revision Design
 
 Date: 2026-07-20  
-Status: Proposed for review  
+Status: Approved for implementation
 Topic: Revise the OpenCode preflight proof contract so capability/plugin proof and runtime model proof are evaluated separately without reclassifying existing committed blocked evidence.
 
 ## 1. Purpose

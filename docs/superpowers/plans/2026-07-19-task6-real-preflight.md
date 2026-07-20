@@ -517,6 +517,8 @@ Expected:
 - redacted model proofs are readable and self-consistent
 - if Claude proves a canonical identity while OpenCode passes capability/preflight but lacks authoritative runtime model proof, the run remains `blocked` with `reason_code = runtime-proof-unavailable`
 
+> Revision note (2026-07-20): the OpenCode capability gate is now defined by repo proof, workspace proof, and canary success. Future implementation must not use `paths_source_match` or `skill_inventory_valid` as hard gates. `debug config`, `debug paths`, and `debug skill` stay committed diagnostics only, and weak debug evidence does not by itself keep OpenCode in raw capability-blocked state. Do not reinterpret the historical blocked evidence at `tests/harness-acceptance/results/2026-07-19T152433Z/`; it remains unchanged old-contract evidence.
+
 - [ ] **Step 7: If the outcome is continuation-ready, validate the preflight basis without final summary artifacts**
 
 Run only when the printed outcome is `continuation-ready`:

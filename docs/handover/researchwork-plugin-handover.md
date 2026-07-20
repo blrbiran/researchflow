@@ -37,8 +37,8 @@
 > 2. Task 5 is done in `main`; do not reopen it without new regression evidence.
 > 3. Task 6 is now merged to `main`, including updated spec/plan, fail-closed Opencode proof handling, and final real preflight evidence.
 > 4. Final committed evidence run: `tests/harness-acceptance/results/2026-07-19T152433Z/`.
-> 5. Final Task 6 result: `blocked` with `reason_code = global_hard_gate_blocked`.
-> 6. Claude proved `openai/gpt-5.4`; Opencode remained preflight-blocked and did not yield authoritative runtime model proof.
+> 5. Historical Task 6 evidence remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
+> 6. Contract revision note: after the 2026-07-20 OpenCode proof-contract revision, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
 > 7. There is still no continuation-ready Task 7 entrypoint and no scored acceptance run; do not run scored cases from this state.
 > 8. If future work continues Task 6/7, start from repo-root `main`, re-read the updated Task 6 spec/plan, and preserve the committed blocked evidence.
 > 9. Preserve repo-local `.claude/worktrees/agent-af92299cb5b976a2b` and any `.omc/`; do not clean harness worktrees without explicit approval.
@@ -387,6 +387,8 @@ Task 4 is therefore **synthetically review-closed only**. This does **not** mean
 
 - Task 5: **complete on `main`** — synthetic preflight, model-alignment hard gate, orchestration, synthetic runner wiring, and fail-closed follow-up fixes are merged into `main` ancestry through `673f8a6` plus later follow-up commits reachable from current `main`.
 - Task 6: **complete as a blocked real-preflight outcome on `main`** — Task 1/2 synthetic validation, fail-closed native proof-surface fixes, Task 6 spec/plan updates, and a committed real preflight-only evidence set are now merged into `main`. The final committed Task 6 evidence is the blocked run `tests/harness-acceptance/results/2026-07-19T152433Z/` with `reason_code = global_hard_gate_blocked`.
+
+  Contract revision note: `tests/harness-acceptance/results/2026-07-19T152433Z/` remains valid blocked evidence under the old OpenCode capability contract. After the 2026-07-20 proof-contract revision lands, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
 - Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
 
 Real Claude Code and OpenCode invocations were performed during Task 6 preflight-only execution. No scored acceptance invocation has been performed yet.
@@ -419,7 +421,7 @@ Safe tool versions observed without exposing configuration values:
 
 Resume from repo-root `main @ b4cb6b8`.
 
-The next implementation step is **decision-making, not more Task 6 replay**: decide whether to accept the current blocked Task 6 evidence as the terminal pre-Task-7 state, revise the Task 6/7 proof contract for OpenCode, or pursue a new OpenCode runtime-proof surface. Do not reopen Task 5 unless new evidence shows a concrete regression or a spec mismatch against merged `main`.
+The next implementation step is no longer deciding whether to revise the OpenCode proof contract; that revision is now recorded in the Task 6 docs. Future work, if any, is to preserve the historical blocked evidence, pursue a new authoritative OpenCode runtime-proof surface, or produce a fresh Task 6 run under the revised contract. Do not reopen Task 5 unless new evidence shows a concrete regression or a spec mismatch against merged `main`.
 
 Recommended procedure from this cwd:
 
@@ -453,8 +455,8 @@ Recommended procedure from this cwd:
 
 Proceed in this order only:
 
-1. Accept or revise the current Task 6 blocked evidence contract.
-2. Produce a new Task 6 continuation-ready run only if the proof contract or harness behavior changes.
+1. Preserve the historical Task 6 blocked evidence and apply the revised OpenCode proof contract only to future runs.
+2. Produce a new Task 6 continuation-ready run only if a new authoritative runtime-proof surface appears or a fresh revised-contract rerun is explicitly requested.
 3. Task 7 scored run only if a continuation-ready Task 6 run exists.
 
 Hard stops:
@@ -471,7 +473,7 @@ Hard stops:
 ## 9. Known limitations and unresolved work
 
 - Claude Code still has no saved real fresh-session routing transcript beyond the Task 6 preflight proof artifacts.
-- OpenCode still has no authoritative runtime model-proof surface on the current `openai-compatible` path, so Task 6 remains blocked on `global_hard_gate_blocked` rather than continuation-ready.
+- OpenCode still has no authoritative runtime model-proof surface on the current `openai-compatible` path. The historical `tests/harness-acceptance/results/2026-07-19T152433Z/` run remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`; under the revised 2026-07-20 contract, comparable future runs should classify as `runtime-proof-unavailable` unless a new authoritative runtime proof surface appears.
 - No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists from both harnesses.
 - No scored acceptance result exists; do not claim acceptance, stability, or release readiness.
 - Release version remains `0.1.0`.

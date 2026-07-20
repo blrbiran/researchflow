@@ -200,13 +200,24 @@ Static declarations may support diagnosis, but they are not proof. In particular
 - `~/.config/opencode/opencode.jsonc` model/provider settings;
 - `debug-config` or equivalent resolved configuration dumps.
 
-### 5.1 Same-model rule
+### 5.1 Revised OpenCode proof boundary
+
+For OpenCode, capability/plugin proof and runtime model proof are separate gates.
+
+- repo static proof, workspace proof, and canary success determine whether OpenCode passes the capability/plugin gate;
+- `debug config`, `debug paths`, and `debug skill` remain diagnostic evidence only;
+- `run --format json` is not an accepted authoritative runtime model-proof surface on the current non-interactive path;
+- therefore a future OpenCode run that passes capability/plugin proof but cannot emit authoritative runtime model proof must classify as `blocked` with `reason_code = runtime-proof-unavailable`.
+
+Capability/plugin pass alone never authorizes Task 7 scored execution.
+
+### 5.2 Same-model rule
 
 Task 6 passes only if both harnesses prove the same verified canonical `openai/<model>` identity.
 
 If they do not match, the run is `blocked`.
 
-### 5.2 Allowlist gap rule
+### 5.3 Allowlist gap rule
 
 If both harnesses prove the same backing model but that backing model is absent from `model-identities.json`, the run is `allowlist-update-needed`.
 
@@ -220,7 +231,7 @@ The required flow is strict:
 
 The original run must never continue into Task 7 after an allowlist update.
 
-### 5.3 Separation of concerns
+### 5.4 Separation of concerns
 
 This separates three auditable events:
 
