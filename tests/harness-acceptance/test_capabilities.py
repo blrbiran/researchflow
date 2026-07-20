@@ -52,18 +52,18 @@ class CapabilitiesTest(unittest.TestCase):
         )
         self.assertIsNone(self.capabilities.select_claude_load_branch(self.fixtures["claude_unsupported"]))
 
-    def test_select_opencode_proof_branch_supports_strong_fallback_and_unsupported(self):
+    def test_select_opencode_proof_branch_supports_capability_pass_and_unsupported(self):
         self.assertEqual(
             self.capabilities.select_opencode_proof_branch(self.fixtures["opencode_strong"]),
-            "strong-runtime-proof",
+            "workspace-repo-canary-proof",
         )
         self.assertEqual(
             self.capabilities.select_opencode_proof_branch(self.fixtures["opencode_fallback"]),
-            "fallback-workspace-proof",
+            "workspace-repo-canary-proof",
         )
         self.assertIsNone(self.capabilities.select_opencode_proof_branch(self.fixtures["opencode_unsupported"]))
 
-    def test_select_isolation_profile_keeps_profile_ids_consistent(self):
+    def test_select_isolation_profile_keeps_opencode_profile_consistent_under_revised_gate(self):
         self.assertEqual(
             self.capabilities.select_isolation_profile(self.fixtures["claude_direct"]),
             "auth-preserving-direct-plugin-dir",
@@ -82,9 +82,18 @@ class CapabilitiesTest(unittest.TestCase):
         )
         self.assertEqual(
             self.capabilities.select_isolation_profile(self.fixtures["opencode_fallback"]),
-            "workspace-config-static-proof",
+            "workspace-config-runtime-proof",
         )
         self.assertIsNone(self.capabilities.select_isolation_profile(self.fixtures["opencode_unsupported"]))
+
+    def test_select_opencode_proof_branch_allows_weak_debug_diagnostics_when_repo_workspace_and_canary_hold(self):
+        weak_debug = clone_json(self.fixtures["opencode_fallback"])
+        weak_debug["probe_results"]["debug"]["paths_source_match"] = False
+        weak_debug["probe_results"]["debug"]["skill_inventory_valid"] = False
+        self.assertEqual(
+            self.capabilities.select_opencode_proof_branch(weak_debug),
+            "workspace-repo-canary-proof",
+        )
 
     def test_build_capability_record_discloses_optional_claude_validation(self):
         probe = clone_json(self.fixtures["claude_direct"])
@@ -170,32 +179,24 @@ class CapabilitiesTest(unittest.TestCase):
         missing_source["probe_results"]["direct_plugin_dir"]["configured_checkout_match"] = False
         self.assertIsNone(self.capabilities.select_claude_load_branch(missing_source))
 
-    def test_select_opencode_proof_branch_requires_metadata_inventory_workspace_and_source_evidence(self):
+    def test_select_opencode_proof_branch_requires_repo_workspace_and_canary_evidence(self):
         missing_plugin_validation = clone_json(self.fixtures["opencode_strong"])
         missing_plugin_validation["probe_results"]["repo_validation"]["plugin_source_file_valid"] = False
         self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_plugin_validation))
 
-        missing_workspace_validation = clone_json(self.fixtures["opencode_strong"])
-        missing_workspace_validation["probe_results"]["repo_validation"]["workspace_config_valid"] = False
-        missing_workspace_validation["probe_results"]["debug"]["config_source_match"] = False
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_workspace_validation))
+        missing_repo_inventory = clone_json(self.fixtures["opencode_strong"])
+        missing_repo_inventory["probe_results"]["repo_validation"]["required_skill_inventory_valid"] = False
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_repo_inventory))
 
-        missing_runtime_inventory = clone_json(self.fixtures["opencode_strong"])
-        missing_runtime_inventory["probe_results"]["debug"]["skill_inventory_valid"] = False
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_runtime_inventory))
+        missing_workspace = clone_json(self.fixtures["opencode_strong"])
+        missing_workspace["probe_results"]["repo_validation"]["workspace_config_valid"] = False
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_workspace))
 
-        contradictory_config_surface = clone_json(self.fixtures["opencode_fallback"])
-        contradictory_config_surface["probe_results"]["debug"]["config"] = True
-        contradictory_config_surface["probe_results"]["debug"]["config_source_match"] = False
-        contradictory_config_surface["probe_results"]["debug"]["skill"] = False
-        contradictory_config_surface["probe_results"]["debug"]["skill_inventory_valid"] = False
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(contradictory_config_surface))
+        missing_canary = clone_json(self.fixtures["opencode_strong"])
+        missing_canary["probe_results"]["run"]["canary_passed"] = False
+        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_canary))
 
-        missing_source_match = clone_json(self.fixtures["opencode_fallback"])
-        missing_source_match["probe_results"]["debug"]["paths_source_match"] = False
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(missing_source_match))
-
-    def test_probe_from_dir_opencode_paths_source_match_requires_paths_evidence(self):
+    def test_probe_from_dir_opencode_keeps_weak_paths_as_diagnostics(self):
         config = {"repo_root": str(ROOT)}
         with tempfile.TemporaryDirectory() as temp_dir:
             probe_dir = Path(temp_dir) / "opencode"
@@ -227,7 +228,11 @@ class CapabilitiesTest(unittest.TestCase):
 
         self.assertTrue(probe["workspace_plugin_matches_checkout"])
         self.assertFalse(probe["probe_results"]["debug"]["paths_source_match"])
-        self.assertIsNone(self.capabilities.select_opencode_proof_branch(probe))
+        self.assertFalse(probe["probe_results"]["debug"]["skill_inventory_valid"])
+        self.assertEqual(
+            self.capabilities.select_opencode_proof_branch(probe),
+            "workspace-repo-canary-proof",
+        )
 
     def test_probe_from_dir_fail_closes_on_empty_and_malformed_native_outputs(self):
         config = {"repo_root": str(ROOT)}

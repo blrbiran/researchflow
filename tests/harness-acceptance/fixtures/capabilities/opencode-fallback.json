@@ -12,7 +12,7 @@
       "config": false,
       "config_source_match": false,
       "paths": true,
-      "paths_source_match": true,
+      "paths_source_match": false,
       "paths_isolation_supported": true,
       "skill": false,
       "skill_inventory_valid": false
