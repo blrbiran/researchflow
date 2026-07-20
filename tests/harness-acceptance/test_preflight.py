@@ -185,6 +185,50 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[5])
         self.assertIsNone(result["canonical_identity"])
 
+    def test_revised_opencode_capability_pass_still_blocks_on_runtime_proof_unavailable(self):
+        claude_capability = copy.deepcopy(self.capability["claude"])
+        claude_preflight = copy.deepcopy(self.base_preflight["claude"])
+        claude_model_proof = copy.deepcopy(self.base_model_proof)
+
+        opencode_capability = copy.deepcopy(self.capability["opencode"])
+        opencode_capability["selected_proof_branch"] = "workspace-repo-canary-proof"
+        opencode_capability["selected_isolation_profile"] = "workspace-config-runtime-proof"
+        opencode_capability.setdefault("probe_results", {}).setdefault("debug", {})["paths_source_match"] = False
+        opencode_capability["probe_results"]["debug"]["skill_inventory_valid"] = False
+
+        opencode_preflight = copy.deepcopy(self.base_preflight["opencode"])
+        opencode_preflight["status"] = "pass"
+        opencode_preflight["isolation_profile"] = "workspace-config-runtime-proof"
+        opencode_preflight["plugin_proof_strength"] = "resolved_runtime_source_inventory_canary"
+
+        opencode_model_proof = copy.deepcopy(self.base_model_proof)
+        opencode_model_proof["harness"] = "opencode"
+        opencode_model_proof["requested_route"] = "openai-compatible/gpt-5.4"
+        opencode_model_proof["backing_model_id"] = "unknown"
+        opencode_model_proof["resolved_model_identity"] = None
+        opencode_model_proof["proof_method"] = "missing-model-metadata"
+        opencode_model_proof["verified"] = False
+
+        claude_result = self.preflight.evaluate_preflight(
+            claude_capability,
+            claude_preflight,
+            claude_model_proof,
+            self.identities,
+        )
+        opencode_result = self.preflight.evaluate_preflight(
+            opencode_capability,
+            opencode_preflight,
+            opencode_model_proof,
+            self.identities,
+        )
+        outcome = self.preflight.determine_preflight_outcome(claude_result, opencode_result)
+
+        self.assertTrue(opencode_result["raw_gate_passed"])
+        self.assertEqual(opencode_result["status"], "pass")
+        self.assertFalse(opencode_result["proof_valid"])
+        self.assertEqual(outcome["outcome"], "blocked")
+        self.assertEqual(outcome["reason_code"], self.preflight.lib.REASON_CODES[5])
+
     def test_determine_preflight_outcome_raw_preflight_block_keeps_allowlist_gap_blocked(self):
         claude = {
             "status": "blocked",
