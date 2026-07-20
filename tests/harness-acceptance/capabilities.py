@@ -18,19 +18,16 @@ import lib  # noqa: E402
 
 CLAUDE_DIRECT_BRANCH = "direct-plugin-dir"
 CLAUDE_MARKETPLACE_BRANCH = "local-marketplace"
-OPENCODE_STRONG_BRANCH = "strong-runtime-proof"
-OPENCODE_FALLBACK_BRANCH = "fallback-workspace-proof"
+OPENCODE_CAPABILITY_BRANCH = "workspace-repo-canary-proof"
 
 CLAUDE_AUTH_PRESERVING_DIRECT = "auth-preserving-direct-plugin-dir"
 CLAUDE_FULL_DIRECT = "full-direct-plugin-dir"
 CLAUDE_AUTH_PRESERVING_MARKETPLACE = "auth-preserving-marketplace"
 CLAUDE_FULL_MARKETPLACE = "full-marketplace"
 OPENCODE_RUNTIME_PROFILE = "workspace-config-runtime-proof"
-OPENCODE_STATIC_PROFILE = "workspace-config-static-proof"
 
 CLAUDE_PROOF_STRENGTH = "best_available_source_plus_canary"
 OPENCODE_RUNTIME_PROOF_STRENGTH = "resolved_runtime_source_inventory_canary"
-OPENCODE_STATIC_PROOF_STRENGTH = "workspace_config_static_inventory_canary"
 
 CANARY_MARKER = "RESEARCHFLOW_BOOTSTRAP_ACTIVE"
 DEFAULT_PLUGIN_SOURCE_ID = "researchflow-checkout"
@@ -480,47 +477,7 @@ def select_opencode_proof_branch(probe: dict[str, Any]) -> Optional[str]:
     if not isinstance(run, dict) or run.get("canary_passed") is not True:
         return None
 
-    debug = probe_results.get("debug")
-    if not isinstance(debug, dict):
-        return None
-
-    config_available = _truthy(debug.get("config"))
-    config_source_match = _truthy(debug.get("config_source_match"))
-    repo_validation = probe_results.get("repo_validation") if isinstance(probe_results.get("repo_validation"), dict) else {}
-    workspace_config_valid = _truthy(repo_validation.get("workspace_config_valid"))
-    paths_available = _truthy(debug.get("paths"))
-    paths_source_match = _truthy(debug.get("paths_source_match"))
-    paths_isolation_supported = _truthy(debug.get("paths_isolation_supported"))
-    skill_available = _truthy(debug.get("skill"))
-    skill_inventory_valid = _truthy(debug.get("skill_inventory_valid"))
-
-    if (
-        config_available
-        and config_source_match
-        and paths_available
-        and paths_source_match
-        and paths_isolation_supported
-        and skill_available
-        and skill_inventory_valid
-    ):
-        return OPENCODE_STRONG_BRANCH
-
-    available_debug_evidence_consistent = (
-        (not config_available or config_source_match)
-        and (not paths_available or (paths_source_match and paths_isolation_supported))
-        and (not skill_available or skill_inventory_valid)
-    )
-    fallback_debug_surface_missing = not (config_available and paths_available and skill_available)
-    if (
-        available_debug_evidence_consistent
-        and fallback_debug_surface_missing
-        and workspace_config_valid
-        and paths_available
-        and paths_source_match
-        and paths_isolation_supported
-    ):
-        return OPENCODE_FALLBACK_BRANCH
-    return None
+    return OPENCODE_CAPABILITY_BRANCH
 
 
 def select_isolation_profile(probe: dict[str, Any]) -> Optional[str]:
@@ -551,10 +508,8 @@ def select_isolation_profile(probe: dict[str, Any]) -> Optional[str]:
         return None
     if harness == "opencode":
         branch = select_opencode_proof_branch(probe)
-        if branch == OPENCODE_STRONG_BRANCH:
+        if branch == OPENCODE_CAPABILITY_BRANCH:
             return OPENCODE_RUNTIME_PROFILE
-        if branch == OPENCODE_FALLBACK_BRANCH:
-            return OPENCODE_STATIC_PROFILE
     return None
 
 
@@ -564,10 +519,8 @@ def _plugin_proof_strength_for_probe(probe: dict[str, Any]) -> Optional[str]:
         return CLAUDE_PROOF_STRENGTH if select_claude_load_branch(probe) else None
     if harness == "opencode":
         branch = select_opencode_proof_branch(probe)
-        if branch == OPENCODE_STRONG_BRANCH:
+        if branch == OPENCODE_CAPABILITY_BRANCH:
             return OPENCODE_RUNTIME_PROOF_STRENGTH
-        if branch == OPENCODE_FALLBACK_BRANCH:
-            return OPENCODE_STATIC_PROOF_STRENGTH
     return None
 
 
