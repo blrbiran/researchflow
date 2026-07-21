@@ -192,12 +192,19 @@ def load_runtime_model_proof_artifact(run_dir: Path, harness: str, results_root:
     except ValueError as exc:
         raise ValueError(f"run_dir is outside trusted results tree: {resolved_run_dir}") from exc
 
-    proof_path = resolved_run_dir / "preflight" / f"{harness}-model-proof.json"
+    trusted_preflight_dir = resolved_run_dir / "preflight"
+    proof_path = trusted_preflight_dir / f"{harness}-model-proof.json"
     resolved_proof_path = proof_path.resolve()
     try:
         resolved_proof_path.relative_to(resolved_results_root)
     except ValueError as exc:
         raise ValueError(f"proof artifact is outside trusted results tree: {resolved_proof_path}") from exc
+    try:
+        resolved_proof_path.relative_to(trusted_preflight_dir)
+    except ValueError as exc:
+        raise ValueError(
+            f"proof artifact is outside trusted run preflight directory: {resolved_proof_path}"
+        ) from exc
 
     # reference/opencode is reference-only; never widen runtime proof lookup beyond the current run.
     return read_json(resolved_proof_path)
