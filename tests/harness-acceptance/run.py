@@ -239,7 +239,12 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
     if mode not in {"preflight-only", "scored"}:
         raise ValueError(f"unsupported mode: {mode}")
 
-    results_root = Path(config.get("results_root", HARNESS_DIR / "results"))
+    trusted_results_root = (HARNESS_DIR / "results").resolve()
+    configured_results_root = Path(config.get("results_root", trusted_results_root)).resolve()
+    if configured_results_root != trusted_results_root:
+        raise ValueError(f"results_root must equal trusted harness results root: {trusted_results_root}")
+
+    results_root = trusted_results_root
     run_dir = results_root / run_id
     preflight_dir = run_dir / "preflight"
     capabilities_dir = run_dir / "capabilities"

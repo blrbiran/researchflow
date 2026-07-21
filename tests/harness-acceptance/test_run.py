@@ -208,38 +208,17 @@ class RunTest(unittest.TestCase):
             self.assertFalse((run_dir / "summary.json").exists())
             self.assertFalse((run_dir / "summary.md").exists())
 
-    def test_run_original_uses_trusted_proof_loader_boundary_across_orchestration(self):
+    def test_run_original_rejects_untrusted_results_root_before_writes(self):
         self.install_fake_adapter()
-        loader_calls: list[tuple[Path, str, Path]] = []
-        original_loader = self.run_module.lib.load_runtime_model_proof_artifact
-
-        def fake_loader(run_dir: Path, harness: str, results_root: Path):
-            loader_calls.append((run_dir, harness, results_root))
-            return copy.deepcopy(self.run_module.lib.read_json(run_dir / "preflight" / f"{harness}-model-proof.json"))
-
-        self.run_module.lib.load_runtime_model_proof_artifact = fake_loader
-        self.addCleanup(setattr, self.run_module.lib, "load_runtime_model_proof_artifact", original_loader)
-
         with tempfile.TemporaryDirectory() as temp_dir:
             configured_results_root = Path(temp_dir) / "results"
             config = self.make_config()
             config["results_root"] = str(configured_results_root)
             self.assertNotEqual(configured_results_root.resolve(), self.trusted_results_root.resolve())
-            run_dir = self.run_module.run_original(config, "2026-07-18T122000Z", "preflight-only")
-            rerun_dir = self.run_module.run_original(config, "2026-07-18T122000Z", "scored")
-
-        self.assertEqual(rerun_dir, run_dir)
-        self.assertEqual(
-            loader_calls,
-            [
-                (run_dir, "claude", self.trusted_results_root),
-                (run_dir, "opencode", self.trusted_results_root),
-                (run_dir, "claude", self.trusted_results_root),
-                (run_dir, "opencode", self.trusted_results_root),
-                (run_dir, "claude", self.trusted_results_root),
-                (run_dir, "opencode", self.trusted_results_root),
-            ],
-        )
+            with self.assertRaisesRegex(ValueError, "results_root must equal trusted harness results root"):
+                self.run_module.run_original(config, "2026-07-18T122000Z", "preflight-only")
+            self.assertFalse((configured_results_root / "2026-07-18T122000Z").exists())
+            self.assertFalse((self.trusted_results_root / "2026-07-18T122000Z").exists())
 
     def test_hydrate_run_config_accepts_minimal_checked_in_config_shape(self):
         minimal = {
