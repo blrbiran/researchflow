@@ -131,6 +131,8 @@ The required classification for a future run that passes capability/plugin proof
 
 This is not a new outcome. It is the already accepted blocked subtype and should be the stable cross-task meaning for this condition in both Task 6 and Task 7 gating.
 
+For the current ResearchFlow repo, accepted runtime-proof input is limited to the current run's preflight model-proof artifacts under `tests/harness-acceptance/results/<run-id>/preflight/`. Reference checkouts such as `reference/opencode` remain diagnostic/reference material and must not be promoted into authoritative runtime proof.
+
 ## 5. Outcome behavior after the revision
 
 ### 5.1 Raw capability failure

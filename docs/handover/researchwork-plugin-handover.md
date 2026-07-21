@@ -391,6 +391,8 @@ Task 4 is therefore **synthetically review-closed only**. This does **not** mean
 - Task 6: **complete as a blocked real-preflight outcome on `main`** — Task 1/2 synthetic validation, fail-closed native proof-surface fixes, Task 6 spec/plan updates, and a committed real preflight-only evidence set are now merged into `main`. The final committed Task 6 evidence is the blocked run `tests/harness-acceptance/results/2026-07-19T152433Z/` with `reason_code = global_hard_gate_blocked`.
 
   Contract revision note: `tests/harness-acceptance/results/2026-07-19T152433Z/` remains valid blocked evidence under the old OpenCode capability contract. After the 2026-07-20 proof-contract revision lands, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
+
+  Current-proof-boundary note: `reference/opencode` is reference-only in the current workflow and must not be consumed as authoritative runtime proof input for Task 6 / Task 7 continuation decisions. Current ResearchFlow harness evaluation accepts runtime model proof only from the current run's preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/`.
 - Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
 
 ### 5.6 New active workstream — OpenCode upstream authoritative runtime-proof surface
