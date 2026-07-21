@@ -48,6 +48,15 @@ class PreflightTest(unittest.TestCase):
             "harness_aliases": {"fable": {"does_not_prove_backing_model": True, "may_route_via": "litellm"}},
         }
 
+    def test_runtime_model_proof_loader_rejects_run_dir_outside_results_tree(self):
+        outside_run_dir = (ROOT / "reference" / "opencode").resolve()
+        with self.assertRaises(ValueError):
+            self.preflight.lib.load_runtime_model_proof_artifact(
+                outside_run_dir,
+                "opencode",
+                HARNESS_DIR / "results",
+            )
+
     def test_load_identities_uses_shared_lib_reader(self):
         sentinel = {"allowed_provider": "openai"}
         captured = {}

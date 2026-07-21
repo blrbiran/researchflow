@@ -181,6 +181,22 @@ def read_json(path: Path) -> dict[str, Any]:
     return _require_dict(value, str(path))
 
 
+def load_runtime_model_proof_artifact(run_dir: Path, harness: str, results_root: Path) -> dict[str, Any]:
+    if harness not in ("claude", "opencode"):
+        raise ValueError(f"unsupported harness: {harness}")
+
+    resolved_run_dir = run_dir.resolve()
+    resolved_results_root = results_root.resolve()
+    try:
+        resolved_run_dir.relative_to(resolved_results_root)
+    except ValueError as exc:
+        raise ValueError(f"run_dir is outside trusted results tree: {resolved_run_dir}") from exc
+
+    proof_path = resolved_run_dir / "preflight" / f"{harness}-model-proof.json"
+    # reference/opencode is reference-only; never widen runtime proof lookup beyond the current run.
+    return read_json(proof_path)
+
+
 def write_json(path: Path, value: dict[str, Any], overwrite: bool = False) -> None:
     _require_dict(value, "value")
     if path.exists() and not overwrite:
