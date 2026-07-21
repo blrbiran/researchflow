@@ -74,6 +74,21 @@ class PreflightTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "outside trusted results tree"):
                 self.preflight.lib.load_runtime_model_proof_artifact(run_dir, "opencode", results_root)
 
+    def test_runtime_model_proof_loader_rejects_symlinked_run_dir_alias(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            results_root = temp_root / "results"
+            source_run_dir = results_root / "run-a"
+            source_preflight_dir = source_run_dir / "preflight"
+            source_preflight_dir.mkdir(parents=True)
+            write_json(source_preflight_dir / "opencode-model-proof.json", self.base_model_proof)
+
+            alias_run_dir = results_root / "run-b"
+            alias_run_dir.symlink_to(source_run_dir)
+
+            with self.assertRaisesRegex(ValueError, "different trusted run entry"):
+                self.preflight.lib.load_runtime_model_proof_artifact(alias_run_dir, "opencode", results_root)
+
     def test_runtime_model_proof_loader_rejects_symlinked_artifact_from_other_run_preflight(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)

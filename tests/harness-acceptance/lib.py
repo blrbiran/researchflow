@@ -185,14 +185,24 @@ def load_runtime_model_proof_artifact(run_dir: Path, harness: str, results_root:
     if harness not in ("claude", "opencode"):
         raise ValueError(f"unsupported harness: {harness}")
 
-    resolved_run_dir = run_dir.resolve()
     resolved_results_root = results_root.resolve()
+    resolved_run_dir = run_dir.resolve()
     try:
         resolved_run_dir.relative_to(resolved_results_root)
     except ValueError as exc:
         raise ValueError(f"run_dir is outside trusted results tree: {resolved_run_dir}") from exc
 
-    trusted_preflight_dir = resolved_run_dir / "preflight"
+    resolved_run_parent = run_dir.parent.resolve()
+    if resolved_run_parent != resolved_results_root:
+        raise ValueError(f"run_dir must be an immediate child of trusted results tree: {run_dir}")
+
+    trusted_run_dir = resolved_results_root / run_dir.name
+    if resolved_run_dir != trusted_run_dir:
+        raise ValueError(
+            f"run_dir resolves to a different trusted run entry: {run_dir} -> {resolved_run_dir}"
+        )
+
+    trusted_preflight_dir = trusted_run_dir / "preflight"
     proof_path = trusted_preflight_dir / f"{harness}-model-proof.json"
     resolved_proof_path = proof_path.resolve()
     try:

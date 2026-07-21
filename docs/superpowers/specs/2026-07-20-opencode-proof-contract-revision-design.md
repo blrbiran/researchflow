@@ -9,7 +9,7 @@ Topic: Revise the OpenCode preflight proof contract so capability/plugin proof a
 This design updates the ResearchFlow harness-acceptance contract for OpenCode after Task 6 real-preflight evidence showed that the current contract conflates two different questions:
 
 1. can OpenCode load the ResearchFlow plugin in the target checkout and execute the preflight canary;
-2. can OpenCode emit authoritative runtime model proof from committed redacted artifacts.
+2. can OpenCode emit authoritative runtime model proof from current-run redacted artifacts inside the trusted results tree.
 
 The current contract treats selected OpenCode debug surfaces as hard preflight gates. Real evidence and source inspection show those surfaces are not stable proof for the properties we were asking them to prove.
 
@@ -43,7 +43,7 @@ As a result, `debug skill` cannot be treated as authoritative proof that runtime
 
 OpenCode internally carries model identifiers such as provider/model IDs in runtime events, but the non-interactive `run --format json` surface does not emit an authoritative model event or a stable result payload containing those fields.
 
-As a result, the current OpenCode preflight path cannot derive committed authoritative runtime model proof from that public surface alone. This is exactly the case that `runtime-proof-unavailable` exists to represent.
+As a result, the current OpenCode preflight path cannot derive authoritative runtime model proof for the current run from that public surface alone. This is exactly the case that `runtime-proof-unavailable` exists to represent.
 
 ### 2.4 `OPENCODE_DIRECT_TRACE` is not part of the current non-interactive preflight contract
 
@@ -120,7 +120,7 @@ When capability/plugin proof passes without full resolved debug surfaces, the br
 
 Authoritative runtime model proof remains unchanged in principle:
 
-- canonical model identity comes only from committed redacted runtime proof;
+- canonical model identity comes only from current-run redacted runtime proof artifacts inside the trusted results tree;
 - static config, route labels, and resolved config dumps are not proof;
 - if authoritative runtime proof is missing, the run must remain blocked.
 
