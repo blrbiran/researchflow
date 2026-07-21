@@ -193,8 +193,14 @@ def load_runtime_model_proof_artifact(run_dir: Path, harness: str, results_root:
         raise ValueError(f"run_dir is outside trusted results tree: {resolved_run_dir}") from exc
 
     proof_path = resolved_run_dir / "preflight" / f"{harness}-model-proof.json"
+    resolved_proof_path = proof_path.resolve()
+    try:
+        resolved_proof_path.relative_to(resolved_results_root)
+    except ValueError as exc:
+        raise ValueError(f"proof artifact is outside trusted results tree: {resolved_proof_path}") from exc
+
     # reference/opencode is reference-only; never widen runtime proof lookup beyond the current run.
-    return read_json(proof_path)
+    return read_json(resolved_proof_path)
 
 
 def write_json(path: Path, value: dict[str, Any], overwrite: bool = False) -> None:

@@ -57,6 +57,23 @@ class PreflightTest(unittest.TestCase):
                 HARNESS_DIR / "results",
             )
 
+    def test_runtime_model_proof_loader_rejects_symlinked_artifact_outside_results_tree(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            results_root = temp_root / "results"
+            run_dir = results_root / "run-123"
+            preflight_dir = run_dir / "preflight"
+            preflight_dir.mkdir(parents=True)
+
+            escaped_dir = temp_root / "escaped"
+            escaped_dir.mkdir()
+            escaped_proof = escaped_dir / "opencode-model-proof.json"
+            write_json(escaped_proof, self.base_model_proof)
+            (preflight_dir / "opencode-model-proof.json").symlink_to(escaped_proof)
+
+            with self.assertRaisesRegex(ValueError, "outside trusted results tree"):
+                self.preflight.lib.load_runtime_model_proof_artifact(run_dir, "opencode", results_root)
+
     def test_load_identities_uses_shared_lib_reader(self):
         sentinel = {"allowed_provider": "openai"}
         captured = {}
