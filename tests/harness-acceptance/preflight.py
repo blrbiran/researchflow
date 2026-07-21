@@ -138,11 +138,12 @@ def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: 
 
 def load_run_preflight_state(run_dir: Path, harness_dir: Path) -> dict[str, Any]:
     identities = load_identities(harness_dir)
+    results_root = harness_dir / "results"
     evaluations = {}
     for harness in ("claude", "opencode"):
         capability = lib.read_json(run_dir / "capabilities" / f"{harness}.json")
         preflight_record = lib.read_json(run_dir / "preflight" / f"{harness}.json")
-        model_proof = lib.read_json(run_dir / "preflight" / f"{harness}-model-proof.json")
+        model_proof = lib.load_runtime_model_proof_artifact(run_dir, harness, results_root)
         evaluations[harness] = evaluate_preflight(capability, preflight_record, model_proof, identities)
     outcome = determine_preflight_outcome(evaluations["claude"], evaluations["opencode"])
     return {

@@ -332,11 +332,49 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["outcome"], "continuation-ready")
         self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
 
+    def test_load_run_preflight_state_reads_only_current_run_proof_artifacts(self):
+        attempted = []
+        original = self.preflight.lib.read_json
+
+        def fake_read_json(path: Path):
+            attempted.append(path.resolve())
+            return original(path)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness_dir = Path(temp_dir) / "harness"
+            run_dir = harness_dir / "results" / "run-1"
+            (run_dir / "capabilities").mkdir(parents=True)
+            (run_dir / "preflight").mkdir(parents=True)
+            write_json(run_dir / "capabilities" / "claude.json", copy.deepcopy(self.capability["claude"]))
+            write_json(run_dir / "capabilities" / "opencode.json", copy.deepcopy(self.capability["opencode"]))
+            write_json(run_dir / "preflight" / "claude.json", copy.deepcopy(self.base_preflight["claude"]))
+            write_json(run_dir / "preflight" / "opencode.json", copy.deepcopy(self.base_preflight["opencode"]))
+            write_json(run_dir / "preflight" / "claude-model-proof.json", copy.deepcopy(self.base_model_proof))
+            broken_opencode_proof = copy.deepcopy(self.base_model_proof)
+            broken_opencode_proof["resolved_model_identity"] = None
+            broken_opencode_proof["verified"] = False
+            write_json(run_dir / "preflight" / "opencode-model-proof.json", broken_opencode_proof)
+            write_json(harness_dir / "model-identities.json", copy.deepcopy(self.identities))
+
+            try:
+                self.preflight.lib.read_json = fake_read_json
+                state = self.preflight.load_run_preflight_state(run_dir, harness_dir)
+            finally:
+                self.preflight.lib.read_json = original
+
+        proof_reads = [path for path in attempted if path.name.endswith("-model-proof.json")]
+        self.assertEqual(len(proof_reads), 2)
+        expected_preflight_dir = (run_dir / "preflight").resolve()
+        self.assertTrue(all(expected_preflight_dir in path.parents for path in proof_reads))
+        self.assertTrue(all("reference/opencode" not in str(path) for path in proof_reads))
+        self.assertEqual(state["outcome"], "blocked")
+        self.assertEqual(state["reason_code"], self.preflight.lib.REASON_CODES[5])
+
     def test_load_run_preflight_state_reports_continuation_ready(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            run_dir = Path(temp_dir)
-            harness_dir = run_dir / "harness"
-            (run_dir / "capabilities").mkdir()
+            harness_dir = Path(temp_dir) / "harness"
+            run_dir = harness_dir / "results" / "run-1"
+            (run_dir / "capabilities").mkdir(parents=True)
             (run_dir / "preflight").mkdir()
             write_json(
                 harness_dir / "model-identities.json",
@@ -373,9 +411,11 @@ class PreflightTest(unittest.TestCase):
 
     def test_main_require_aligned_rejects_non_ready_run(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            run_dir = Path(temp_dir)
-            (run_dir / "capabilities").mkdir()
+            harness_dir = Path(temp_dir) / "harness"
+            run_dir = harness_dir / "results" / "run-1"
+            (run_dir / "capabilities").mkdir(parents=True)
             (run_dir / "preflight").mkdir()
+            write_json(harness_dir / "model-identities.json", copy.deepcopy(self.identities))
             write_json(run_dir / "capabilities" / "claude.json", self.capability["claude"])
             write_json(run_dir / "capabilities" / "opencode.json", self.capability["opencode"])
             write_json(run_dir / "preflight" / "claude.json", self.base_preflight["claude"])
@@ -387,5 +427,11 @@ class PreflightTest(unittest.TestCase):
                 model_proof["resolved_model_identity"] = "openai/gpt-5.5"
                 model_proof["requested_route"] = "fable" if harness == "claude" else "openai/gpt-5.5"
                 write_json(run_dir / "preflight" / f"{harness}-model-proof.json", model_proof)
-            with self.assertRaisesRegex(ValueError, "continuation-ready"):
-                self.preflight.main(["--run-dir", str(run_dir), "--require-aligned"])
+
+            original_here = self.preflight.HERE
+            self.preflight.HERE = harness_dir
+            try:
+                with self.assertRaisesRegex(ValueError, "continuation-ready"):
+                    self.preflight.main(["--run-dir", str(run_dir), "--require-aligned"])
+            finally:
+                self.preflight.HERE = original_here
