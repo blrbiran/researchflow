@@ -332,6 +332,11 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(result["outcome"], "continuation-ready")
         self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
 
+    def test_run_module_uses_shared_runtime_model_proof_loader_contract(self):
+        source = (HARNESS_DIR / "run.py").read_text(encoding="utf-8")
+        self.assertIn("load_runtime_model_proof_artifact", source)
+        self.assertNotIn('lib.read_json(preflight_dir / f"{harness}-model-proof.json")', source)
+
     def test_load_run_preflight_state_reads_only_current_run_proof_artifacts(self):
         attempted = []
         original = self.preflight.lib.read_json

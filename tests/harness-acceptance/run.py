@@ -268,7 +268,7 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
                 _run_adapter(harness, "preflight", config_path, preflight_dir)
                 capability = lib.read_json(capabilities_dir / f"{harness}.json")
                 preflight_record = lib.read_json(preflight_dir / f"{harness}.json")
-                model_proof = lib.read_json(preflight_dir / f"{harness}-model-proof.json")
+                model_proof = lib.load_runtime_model_proof_artifact(run_dir, harness, results_root)
                 evaluations[harness] = preflight.evaluate_preflight(capability, preflight_record, model_proof, identities)
                 model_proofs[harness] = model_proof
             alignment = preflight.evaluate_model_alignment(evaluations["claude"], evaluations["opencode"])
@@ -286,7 +286,7 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
             harness: preflight.evaluate_preflight(
                 lib.read_json(capabilities_dir / f"{harness}.json"),
                 lib.read_json(preflight_dir / f"{harness}.json"),
-                lib.read_json(preflight_dir / f"{harness}-model-proof.json"),
+                lib.load_runtime_model_proof_artifact(run_dir, harness, results_root),
                 identities,
             )
             for harness in HARNESSES
@@ -300,7 +300,10 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
             target_root,
             config_with_run,
             evaluations,
-            {harness: lib.read_json(preflight_dir / f"{harness}-model-proof.json") for harness in HARNESSES},
+            {
+                harness: lib.load_runtime_model_proof_artifact(run_dir, harness, results_root)
+                for harness in HARNESSES
+            },
         )
         if baseline != expected_baseline:
             raise ValueError("baseline fingerprint mismatch")
