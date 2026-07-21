@@ -66,6 +66,11 @@ class RunTest(unittest.TestCase):
         self.run_module.summarize.HARNESS_DIR = identity_root
         self.addCleanup(setattr, self.run_module.summarize, "HARNESS_DIR", original_harness_dir)
 
+        original_run_harness_dir = self.run_module.HARNESS_DIR
+        self.run_module.HARNESS_DIR = identity_root
+        self.trusted_results_root = identity_root / "results"
+        self.addCleanup(setattr, self.run_module, "HARNESS_DIR", original_run_harness_dir)
+
         original_load_identities = self.run_module.preflight.load_identities
 
         def fake_load_identities(_harness_dir: Path):
@@ -155,7 +160,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter(blocked_harness="claude", case_calls=case_calls)
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             run_dir = self.run_module.run_original(config, "2026-07-18T120000Z", "preflight-only")
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(case_calls, [])
@@ -166,7 +171,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter()
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             run_dir = self.run_module.run_original(config, "2026-07-18T121500Z", "preflight-only")
             baseline = json.loads((run_dir / "preflight" / "baseline.json").read_text(encoding="utf-8"))
             self.assertEqual(baseline["repo_commit_sha"], config["repo_commit_sha"])
@@ -202,6 +207,39 @@ class RunTest(unittest.TestCase):
             self.assertRegex(baseline["fingerprint_sha256"], r"^[0-9a-f]{64}$")
             self.assertFalse((run_dir / "summary.json").exists())
             self.assertFalse((run_dir / "summary.md").exists())
+
+    def test_run_original_uses_trusted_proof_loader_boundary_across_orchestration(self):
+        self.install_fake_adapter()
+        loader_calls: list[tuple[Path, str, Path]] = []
+        original_loader = self.run_module.lib.load_runtime_model_proof_artifact
+
+        def fake_loader(run_dir: Path, harness: str, results_root: Path):
+            loader_calls.append((run_dir, harness, results_root))
+            return copy.deepcopy(self.run_module.lib.read_json(run_dir / "preflight" / f"{harness}-model-proof.json"))
+
+        self.run_module.lib.load_runtime_model_proof_artifact = fake_loader
+        self.addCleanup(setattr, self.run_module.lib, "load_runtime_model_proof_artifact", original_loader)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            configured_results_root = Path(temp_dir) / "results"
+            config = self.make_config()
+            config["results_root"] = str(configured_results_root)
+            self.assertNotEqual(configured_results_root.resolve(), self.trusted_results_root.resolve())
+            run_dir = self.run_module.run_original(config, "2026-07-18T122000Z", "preflight-only")
+            rerun_dir = self.run_module.run_original(config, "2026-07-18T122000Z", "scored")
+
+        self.assertEqual(rerun_dir, run_dir)
+        self.assertEqual(
+            loader_calls,
+            [
+                (run_dir, "claude", self.trusted_results_root),
+                (run_dir, "opencode", self.trusted_results_root),
+                (run_dir, "claude", self.trusted_results_root),
+                (run_dir, "opencode", self.trusted_results_root),
+                (run_dir, "claude", self.trusted_results_root),
+                (run_dir, "opencode", self.trusted_results_root),
+            ],
+        )
 
     def test_hydrate_run_config_accepts_minimal_checked_in_config_shape(self):
         minimal = {
@@ -256,7 +294,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter(case_calls=case_calls)
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             run_dir = self.run_module.run_original(config, "2026-07-18T123000Z", "preflight-only")
             rerun_dir = self.run_module.run_original(config, "2026-07-18T123000Z", "scored")
             self.assertEqual(run_dir, rerun_dir)
@@ -268,7 +306,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter()
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             run_dir = self.run_module.run_original(config, "2026-07-18T124500Z", "preflight-only")
             changed = copy.deepcopy(config)
             changed["timeout_seconds"] = 300
@@ -293,7 +331,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter()
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             self.run_module.run_original(config, "2026-07-18T125500Z", "preflight-only")
             with self.assertRaises(FileExistsError):
                 self.run_module.run_original(config, "2026-07-18T125500Z", "preflight-only")
@@ -302,7 +340,7 @@ class RunTest(unittest.TestCase):
         self.install_fake_adapter()
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             self.run_module.run_original(config, "2026-07-18T130500Z", "preflight-only")
             self.run_module.run_original(config, "2026-07-18T130500Z", "scored")
             with self.assertRaisesRegex(ValueError, "scored phase already completed"):
@@ -341,7 +379,7 @@ class RunTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.make_config()
-            config["results_root"] = str(Path(temp_dir) / "results")
+            config["results_root"] = str(self.trusted_results_root)
             run_dir = self.run_module.run_original(config, "2026-07-18T131500Z", "preflight-only")
             self.run_module.run_original(config, "2026-07-18T131500Z", "scored")
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
