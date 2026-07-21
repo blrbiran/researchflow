@@ -1,15 +1,17 @@
 # ResearchFlow Plugin Handover
 
-> Updated: 2026-07-20
+> Updated: 2026-07-21
 > Expected agent cwd: the ResearchFlow repository root (`reference/researchflow/` from the parent; `.` inside this document)
 > Remote: `git@github.com:blrbiran/researchflow.git`
 > Historical design checkout branch: `docs/live-harness-acceptance-design`
 > Repository-root branch: `main`
-> Repository-root HEAD: `b4cb6b8` at the time this handover was refreshed. This may advance again if the handover itself is later committed or additional local commits are made.
+> Repository-root HEAD: `a0708c5` at the time this handover was refreshed. This may advance again if the handover itself is later committed or additional local commits are made.
 > Origin branch state: intentionally omitted here; verify with `git status --short --branch` or `git rev-list --left-right --count origin/main...HEAD` at resume time if exact divergence matters.
 > Preserved implementation worktree from this cwd: none
 > Preserved implementation branch: none
 > Preserved implementation HEAD: none
+> Separate active upstream implementation workspace: `reference/opencode/.worktrees/runtime-proof-surface` on branch `runtime-proof-surface @ 9747fef07`
+> That OpenCode worktree is currently clean (`git status --short` empty) and is the active location for the next upstream runtime-proof surface tasks.
 > Task 5 synthetic preflight/orchestration was completed, reviewed, merged locally to `main`, and its manual `.worktrees/task5-synthetic-preflight-orchestration` workspace was removed.
 > The latest Task 5 code is already in local `main` ancestry under merge commit `673f8a6`.
 > Task 6 design is now approved in `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`.
@@ -33,16 +35,16 @@
 > End of current-state header.
 > 
 > Executive summary for next agent (10 lines max):
-> 1. CWD is this repo root; current local branch is `main` and this handover was refreshed at `main @ b4cb6b8`.
-> 2. Task 5 is done in `main`; do not reopen it without new regression evidence.
-> 3. Task 6 is now merged to `main`, including updated spec/plan, fail-closed Opencode proof handling, and final real preflight evidence.
-> 4. Final committed evidence run: `tests/harness-acceptance/results/2026-07-19T152433Z/`.
-> 5. Historical Task 6 evidence remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
-> 6. Contract revision note: after the 2026-07-20 OpenCode proof-contract revision, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
-> 7. There is still no continuation-ready Task 7 entrypoint and no scored acceptance run; do not run scored cases from this state.
-> 8. If future work continues Task 6/7, start from repo-root `main`, re-read the updated Task 6 spec/plan, and preserve the committed blocked evidence.
-> 9. Preserve repo-local `.claude/worktrees/agent-af92299cb5b976a2b` and any `.omc/`; do not clean harness worktrees without explicit approval.
-> 10. The parent `ccmem_paper` repo still needs a separate submodule pointer commit if the user wants to record this ResearchFlow state.
+> 1. ResearchFlow repo root stays on local `main @ a0708c5`; Task 5/Task 6 and the 2026-07-20 OpenCode proof-contract revision are already merged here.
+> 2. Final committed historical Task 6 evidence is still `tests/harness-acceptance/results/2026-07-19T152433Z/` and remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
+> 3. Under the revised 2026-07-20 ResearchFlow contract, comparable future reruns should classify as `runtime-proof-unavailable` unless a new authoritative OpenCode runtime-proof surface appears.
+> 4. Task 7 still has no continuation-ready entrypoint; do not run scored cases from current ResearchFlow `main`.
+> 5. The active next workstream is **OpenCode upstream**, not ResearchFlow consumer code.
+> 6. Active OpenCode implementation worktree: `reference/opencode/.worktrees/runtime-proof-surface` on branch `runtime-proof-surface @ 9747fef07`.
+> 7. OpenCode Task 1 is complete and review-clean; Task 2 has emitted additive `model` events and updated process-level JSON tests, but the latest reviewer still wants the canonical `model` event to read from shared `runtimeModelProof` state instead of raw `message.updated` payloads.
+> 8. Before resuming, inspect OpenCode files: `packages/opencode/src/cli/cmd/run.ts`, `packages/opencode/src/cli/cmd/run/session-data.ts`, `packages/opencode/src/cli/cmd/run/types.ts`, and `packages/opencode/test/cli/run/{runtime,run-process}.test.ts`.
+> 9. OpenCode worktree baseline is now usable when run correctly from `packages/opencode` with `bun`; earlier failures were caused by wrong cwd/test entrypoint, not by the runtime-proof feature code itself.
+> 10. Preserve repo-local `.claude/worktrees/agent-af92299cb5b976a2b` and any `.omc/`; do not clean harness worktrees without explicit approval.
 > 
 > 
 > Historical notes below remain for provenance only.
@@ -390,6 +392,90 @@ Task 4 is therefore **synthetically review-closed only**. This does **not** mean
 
   Contract revision note: `tests/harness-acceptance/results/2026-07-19T152433Z/` remains valid blocked evidence under the old OpenCode capability contract. After the 2026-07-20 proof-contract revision lands, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
 - Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
+
+### 5.6 New active workstream — OpenCode upstream authoritative runtime-proof surface
+
+The user explicitly redirected the next workstream away from immediate Task 6/Task 7 reruns and toward **OpenCode upstream runtime-proof surface work**.
+
+Approved new ResearchFlow-side design / plan records for that upstream workstream:
+
+- Spec: `docs/superpowers/specs/2026-07-20-opencode-runtime-proof-surface-design.md`
+- Plan: `docs/superpowers/plans/2026-07-20-opencode-runtime-proof-surface.md`
+
+Scope boundaries for this new workstream:
+
+- upstream-only subproject A;
+- no ResearchFlow consumer changes yet;
+- dual-track surface design:
+  - canonical authoritative `model` event on `opencode run --format json`;
+  - dedicated `debug proof` / `debug model` surface derived from the same execution-scoped runtime truth;
+- keep `run --format json` as the only authoritative machine-consumable source for downstream gating;
+- keep the debug proof surface diagnostic-only;
+- keep fail-closed semantics whenever runtime proof is unavailable or unverified.
+
+Current active OpenCode implementation workspace and branch:
+
+- repo: `reference/opencode`
+- manual repo-local worktree: `.worktrees/runtime-proof-surface`
+- branch: `runtime-proof-surface`
+- current HEAD at handover refresh: `9747fef07`
+- current worktree state at handover refresh: clean (`git -C reference/opencode/.worktrees/runtime-proof-surface status --short` empty)
+
+OpenCode baseline debugging outcome already established:
+
+- earlier failures were not runtime-proof feature regressions;
+- they came from running Bun tests from the wrong cwd / wrong package entrypoint and from not having completed `bun install` in the OpenCode worktree root;
+- the corrected baseline pattern is package-level execution from `reference/opencode/.worktrees/runtime-proof-surface/packages/opencode`.
+
+Commands already confirmed usable for the corrected OpenCode baseline:
+
+- `env -C reference/opencode/.worktrees/runtime-proof-surface/packages/opencode bun test test/cli/run/session-data.test.ts`
+- `env -C reference/opencode/.worktrees/runtime-proof-surface/packages/opencode bun test test/cli/run/runtime.test.ts`
+
+OpenCode upstream work completed so far:
+
+- `0dff86992` — `test(opencode): record runtime model proof state`
+  - Task 1 initial execution-scoped runtime proof record
+- `5a46e20a4` — `fix(opencode): preserve runtime proof in subagent compaction`
+  - Task 1 review-fix preserving proof state through child/session compaction
+- `89c818b95` — `feat(opencode): emit runtime model event`
+  - Task 2 initial additive canonical `model` event on non-interactive run path
+- `9747fef07` — `test(opencode): cover additive model events in json contract`
+  - Task 2 review-fix updating process-level JSON contract tests for the additive `model` event
+
+OpenCode task-state summary:
+
+- **Task 1:** complete and review-clean
+- **Task 2:** not yet accepted as complete
+
+Remaining OpenCode reviewer finding for Task 2:
+
+- the canonical `model` event in `packages/opencode/src/cli/cmd/run.ts` still derives its payload directly from raw `message.updated` payloads;
+- the reviewer wants that event to read from the shared execution-scoped `runtimeModelProof` state established in Task 1, so that future canonical run-path proof and the later `debug proof` surface are guaranteed to share one truth source;
+- the user explicitly approved pulling that requirement forward into Task 2 instead of deferring it.
+
+Concrete resume guidance for the next agent on the OpenCode workstream:
+
+1. work in `reference/opencode/.worktrees/runtime-proof-surface`;
+2. inspect `packages/opencode/src/cli/cmd/run.ts`, `packages/opencode/src/cli/cmd/run/session-data.ts`, and `packages/opencode/src/cli/cmd/run/types.ts` together;
+3. change the canonical `model` event emission path so it consumes the shared execution-scoped `runtimeModelProof` state instead of reading directly from raw `message.updated` payloads;
+4. re-run the focused package-level suites:
+   - `test/cli/run/runtime.test.ts`
+   - `test/cli/run/run-process.test.ts`
+   - and any other targeted suite required by that change;
+5. only after Task 2 review passes, continue into Task 3 (`debug proof`).
+
+Additional operational notes for the next agent:
+
+- root-level `bun test ...` in `reference/opencode` is a trap because `reference/opencode/package.json` intentionally exits with `do not run tests from root`;
+- use package-level `env -C .../packages/opencode bun test ...` commands for focused upstream tests;
+- do not change ResearchFlow consumer logic during this upstream-only cycle;
+- do not reinterpret or rewrite the historical Task 6 blocked evidence while working on OpenCode upstream;
+- the parent `ccmem_paper` repo will later need a separate submodule-pointer commit if the user wants to record either the current ResearchFlow state or the future OpenCode branch state.
+
+Historical Task 6 / Task 7 continuation notes below remain valid provenance, but future agents should treat this OpenCode-upstream block as the current operational starting point.
+
+End of current upstream-workstream note.
 
 Real Claude Code and OpenCode invocations were performed during Task 6 preflight-only execution. No scored acceptance invocation has been performed yet.
 
