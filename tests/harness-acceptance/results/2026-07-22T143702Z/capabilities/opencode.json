@@ -1,0 +1,35 @@
+{
+  "auth_preserving_full_isolation": false,
+  "cli_version": "1.18.3",
+  "harness": "opencode",
+  "local_plugin_loading": true,
+  "noninteractive": true,
+  "plugin_proof_strength": "workspace_config_static_inventory_canary",
+  "probe_results": {
+    "debug": {
+      "config": true,
+      "config_source_match": true,
+      "paths": true,
+      "paths_isolation_supported": true,
+      "paths_source_match": false,
+      "skill": true,
+      "skill_inventory_valid": false
+    },
+    "repo_validation": {
+      "plugin_source_file_valid": true,
+      "required_skill_inventory_missing": [],
+      "required_skill_inventory_valid": true,
+      "workspace_config_valid": true
+    },
+    "run": {
+      "canary_passed": true
+    }
+  },
+  "schema_version": 1,
+  "selected_isolation_profile": "workspace-config-runtime-proof",
+  "selected_proof_branch": "workspace-repo-canary-proof",
+  "session_persistence_disable": true,
+  "settings_isolation": true,
+  "structured_output": true,
+  "workspace_plugin_matches_checkout": true
+}

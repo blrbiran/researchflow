@@ -1,0 +1,14 @@
+{
+  "backing_model_id": "unknown",
+  "endpoint_identity_sha256": "f2ff72644ace78c6adc79b5926b0d3a570dc2afbfba9d6aefa50198df1c89806",
+  "harness": "opencode",
+  "proof_method": "missing-model-metadata",
+  "proof_sha256": "4ecf8c17e568923a72b9dd0aca18d96ee8a4d67d6f4fc24709c92a7cf9e09edc",
+  "proxy_kind": "litellm",
+  "redaction_passed": true,
+  "requested_route": "openai-compatible/gpt-5.4",
+  "resolved_model_identity": null,
+  "schema_version": 1,
+  "upstream_provider": "openai",
+  "verified": false
+}

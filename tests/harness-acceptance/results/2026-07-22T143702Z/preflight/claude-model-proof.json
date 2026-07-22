@@ -1,0 +1,14 @@
+{
+  "backing_model_id": "gpt-5.4",
+  "endpoint_identity_sha256": "f2ff72644ace78c6adc79b5926b0d3a570dc2afbfba9d6aefa50198df1c89806",
+  "harness": "claude",
+  "proof_method": "result-model-usage",
+  "proof_sha256": "4b5f52aa9b3d40b845a362b78208a4f6e5eb649a353e27acaf5f0a9690c2ec90",
+  "proxy_kind": "litellm",
+  "redaction_passed": true,
+  "requested_route": "fable",
+  "resolved_model_identity": "openai/gpt-5.4",
+  "schema_version": 1,
+  "upstream_provider": "openai",
+  "verified": true
+}

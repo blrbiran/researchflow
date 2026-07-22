@@ -1,0 +1,48 @@
+{
+  "auth_preserving_full_isolation": true,
+  "cli_version": "Code)",
+  "harness": "claude",
+  "local_plugin_loading": true,
+  "noninteractive": true,
+  "optional_cli_validation": true,
+  "plugin_load_path": "direct-plugin-dir",
+  "plugin_proof_strength": "best_available_source_plus_canary",
+  "probe_results": {
+    "auth_preserving_supported": true,
+    "cli_validation": {
+      "passed": true,
+      "supported": true
+    },
+    "direct_plugin_dir": {
+      "canary_passed": true,
+      "configured_checkout_match": true,
+      "flag_supported": true
+    },
+    "environment_validation": {
+      "full_isolation_supported": true,
+      "plugin_dir_supported": true,
+      "session_persistence_disable_supported": true,
+      "structured_output_supported": true,
+      "tools_disable_supported": true
+    },
+    "full_isolation_auth_compatible": true,
+    "marketplace": {
+      "canary_passed": true,
+      "install_supported": false,
+      "registration_supported": true,
+      "resolved_checkout_match": false
+    },
+    "repo_validation": {
+      "marketplace_metadata_valid": true,
+      "plugin_metadata_valid": true,
+      "required_skill_inventory_missing": [],
+      "required_skill_inventory_valid": true
+    }
+  },
+  "schema_version": 1,
+  "selected_isolation_profile": "full-direct-plugin-dir",
+  "selected_load_branch": "direct-plugin-dir",
+  "session_persistence_disable": true,
+  "settings_isolation": true,
+  "structured_output": true
+}
