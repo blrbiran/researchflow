@@ -226,6 +226,29 @@ class PreflightTest(unittest.TestCase):
         claude = {
             "status": "pass",
             "raw_gate_passed": True,
+            "canonical_identity": None,
+            "proof_identity": None,
+            "proof_valid": False,
+            "allowlist_missing": False,
+        }
+        opencode = {
+            "status": "pass",
+            "raw_gate_passed": True,
+            "canonical_identity": "openai/gpt-5.4",
+            "proof_identity": "openai/gpt-5.4",
+            "proof_valid": True,
+            "allowlist_missing": False,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[5])
+        self.assertIsNone(result["canonical_identity"])
+        self.assertEqual(result["proof_facts"], {})
+
+    def test_determine_preflight_outcome_marks_conditional_continuation_for_opencode_proof_gap(self):
+        claude = {
+            "status": "pass",
+            "raw_gate_passed": True,
             "canonical_identity": "openai/gpt-5.4",
             "proof_identity": "openai/gpt-5.4",
             "proof_valid": True,
@@ -240,9 +263,32 @@ class PreflightTest(unittest.TestCase):
             "allowlist_missing": False,
         }
         result = self.preflight.determine_preflight_outcome(claude, opencode)
-        self.assertEqual(result["outcome"], "blocked")
-        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[5])
-        self.assertIsNone(result["canonical_identity"])
+        self.assertEqual(result["outcome"], "continuation-ready-conditional")
+        self.assertIsNone(result["reason_code"])
+        self.assertEqual(result["canonical_identity"], "openai/gpt-5.4")
+        self.assertEqual(result["proof_facts"], {"opencode_runtime_proof": "unavailable"})
+
+    def test_determine_preflight_outcome_keeps_claude_allowlist_gap_outside_conditional_path(self):
+        claude = {
+            "status": "pass",
+            "raw_gate_passed": True,
+            "canonical_identity": None,
+            "proof_identity": "openai/gpt-5.4",
+            "proof_valid": True,
+            "allowlist_missing": True,
+        }
+        opencode = {
+            "status": "pass",
+            "raw_gate_passed": True,
+            "canonical_identity": None,
+            "proof_identity": None,
+            "proof_valid": False,
+            "allowlist_missing": False,
+        }
+        result = self.preflight.determine_preflight_outcome(claude, opencode)
+        self.assertEqual(result["outcome"], "allowlist-update-needed")
+        self.assertEqual(result["reason_code"], self.preflight.lib.REASON_CODES[3])
+        self.assertEqual(result["proof_facts"], {"opencode_runtime_proof": "unavailable"})
 
     def test_revised_opencode_capability_pass_still_blocks_on_runtime_proof_unavailable(self):
         claude_capability = copy.deepcopy(self.capability["claude"])
@@ -287,8 +333,10 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(opencode_result["status"], "pass")
         self.assertEqual(opencode_result["plugin_proof_strength"], "workspace_config_static_inventory_canary")
         self.assertFalse(opencode_result["proof_valid"])
-        self.assertEqual(outcome["outcome"], "blocked")
-        self.assertEqual(outcome["reason_code"], self.preflight.lib.REASON_CODES[5])
+        self.assertEqual(outcome["outcome"], "continuation-ready-conditional")
+        self.assertIsNone(outcome["reason_code"])
+        self.assertEqual(outcome["canonical_identity"], claude_result["canonical_identity"])
+        self.assertEqual(outcome["proof_facts"], {"opencode_runtime_proof": "unavailable"})
 
     def test_determine_preflight_outcome_raw_preflight_block_keeps_allowlist_gap_blocked(self):
         claude = {
@@ -344,8 +392,9 @@ class PreflightTest(unittest.TestCase):
             "allowlist_missing": False,
         }
         result = self.preflight.determine_preflight_outcome(ready, ready)
-        self.assertEqual(result["outcome"], "continuation-ready")
+        self.assertEqual(result["outcome"], "continuation-ready-strong")
         self.assertEqual(result["canonical_identity"], "openai/synthetic-model")
+        self.assertEqual(result["proof_facts"], {})
 
     def test_run_module_uses_shared_runtime_model_proof_loader_contract(self):
         source = (HARNESS_DIR / "run.py").read_text(encoding="utf-8")
@@ -387,8 +436,10 @@ class PreflightTest(unittest.TestCase):
         expected_preflight_dir = (run_dir / "preflight").resolve()
         self.assertTrue(all(expected_preflight_dir in path.parents for path in proof_reads))
         self.assertTrue(all("reference/opencode" not in str(path) for path in proof_reads))
-        self.assertEqual(state["outcome"], "blocked")
-        self.assertEqual(state["reason_code"], self.preflight.lib.REASON_CODES[5])
+        self.assertEqual(state["outcome"], "continuation-ready-conditional")
+        self.assertIsNone(state["reason_code"])
+        self.assertEqual(state["canonical_identity"], "openai/synthetic-model")
+        self.assertEqual(state["proof_facts"], {"opencode_runtime_proof": "unavailable"})
 
     def test_load_run_preflight_state_reports_continuation_ready(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -417,8 +468,12 @@ class PreflightTest(unittest.TestCase):
             write_json(run_dir / "preflight" / "claude-model-proof.json", claude_proof)
             write_json(run_dir / "preflight" / "opencode-model-proof.json", opencode_proof)
             state = self.preflight.load_run_preflight_state(run_dir, harness_dir)
-            self.assertEqual(state["outcome"], "continuation-ready")
+            self.assertEqual(state["outcome"], "continuation-ready-strong")
             self.assertEqual(state["canonical_identity"], "openai/synthetic-model")
+            self.assertEqual(state["proof_facts"], {})
+
+    def test_require_continuation_ready_accepts_conditional_state(self):
+        self.preflight.require_continuation_ready({"outcome": "continuation-ready-conditional"})
 
     def test_require_continuation_ready_rejects_allowlist_update_needed(self):
         state = {

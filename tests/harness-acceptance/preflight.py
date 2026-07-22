@@ -97,42 +97,66 @@ def evaluate_model_alignment(claude_result: dict[str, Any], opencode_result: dic
 
 def determine_preflight_outcome(claude_result: dict[str, Any], opencode_result: dict[str, Any]) -> dict[str, Any]:
     alignment = evaluate_model_alignment(claude_result, opencode_result)
+    proof_facts: dict[str, str] = {}
+    if not opencode_result.get("proof_valid"):
+        proof_facts["opencode_runtime_proof"] = "unavailable"
     if alignment["aligned"]:
         return {
-            "outcome": "continuation-ready",
+            "outcome": "continuation-ready-strong",
             "reason_code": None,
             "canonical_identity": alignment["canonical_identity"],
+            "proof_facts": proof_facts,
         }
     raw_gate_passed = bool(claude_result.get("raw_gate_passed")) and bool(opencode_result.get("raw_gate_passed"))
     if (
         raw_gate_passed
-        and alignment["reason_code"] == GLOBAL_HARD_GATE_BLOCKED
         and claude_result.get("proof_valid")
-        and opencode_result.get("proof_valid")
-        and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
-        and (claude_result.get("allowlist_missing") or opencode_result.get("allowlist_missing"))
+        and (
+            (
+                alignment["reason_code"] == GLOBAL_HARD_GATE_BLOCKED
+                and claude_result.get("proof_identity") == opencode_result.get("proof_identity")
+                and (claude_result.get("allowlist_missing") or opencode_result.get("allowlist_missing"))
+            )
+            or (claude_result.get("allowlist_missing") and not opencode_result.get("proof_valid"))
+        )
     ):
         return {
             "outcome": "allowlist-update-needed",
             "reason_code": GLOBAL_HARD_GATE_BLOCKED,
             "canonical_identity": None,
+            "proof_facts": proof_facts,
+        }
+    if (
+        raw_gate_passed
+        and claude_result.get("proof_valid")
+        and isinstance(claude_result.get("canonical_identity"), str)
+        and not opencode_result.get("proof_valid")
+    ):
+        return {
+            "outcome": "continuation-ready-conditional",
+            "reason_code": None,
+            "canonical_identity": claude_result["canonical_identity"],
+            "proof_facts": proof_facts,
         }
     if raw_gate_passed and (not claude_result.get("proof_valid") or not opencode_result.get("proof_valid")):
         return {
             "outcome": "blocked",
             "reason_code": RUNTIME_PROOF_UNAVAILABLE,
             "canonical_identity": None,
+            "proof_facts": proof_facts,
         }
     if claude_result.get("status") != "pass" or opencode_result.get("status") != "pass":
         return {
             "outcome": "blocked",
             "reason_code": alignment["reason_code"] or GLOBAL_HARD_GATE_BLOCKED,
             "canonical_identity": None,
+            "proof_facts": proof_facts,
         }
     return {
         "outcome": "blocked",
         "reason_code": alignment["reason_code"] or MODEL_ALIGNMENT_BLOCKED,
         "canonical_identity": None,
+        "proof_facts": proof_facts,
     }
 
 
@@ -150,12 +174,13 @@ def load_run_preflight_state(run_dir: Path, harness_dir: Path) -> dict[str, Any]
         "outcome": outcome["outcome"],
         "reason_code": outcome["reason_code"],
         "canonical_identity": outcome["canonical_identity"],
+        "proof_facts": outcome["proof_facts"],
         "harnesses": evaluations,
     }
 
 
 def require_continuation_ready(state: dict[str, Any]) -> None:
-    if state.get("outcome") != "continuation-ready":
+    if state.get("outcome") not in {"continuation-ready-strong", "continuation-ready-conditional"}:
         raise ValueError(f"run is not continuation-ready: {state.get('outcome')}")
 
 
