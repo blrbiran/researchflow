@@ -1,26 +1,27 @@
 # ResearchFlow Plugin Handover
 
-> Updated: 2026-07-21
+> Updated: 2026-07-22
 > Expected agent cwd: the ResearchFlow repository root (`reference/researchflow/` from the parent; `.` inside this document)
 > Remote: `git@github.com:blrbiran/researchflow.git`
 > Historical design checkout branch: `docs/live-harness-acceptance-design`
 > Repository-root branch: `main`
-> Repository-root HEAD: `a0708c5` at the time this handover was refreshed. This may advance again if the handover itself is later committed or additional local commits are made.
+> Repository-root HEAD: local `main` included `9932dda` when this handover was refreshed. If exact HEAD matters, verify with `git rev-parse --short HEAD` at resume time because later handover edits or local commits will advance it.
 > Origin branch state: intentionally omitted here; verify with `git status --short --branch` or `git rev-list --left-right --count origin/main...HEAD` at resume time if exact divergence matters.
 > Preserved implementation worktree from this cwd: none
 > Preserved implementation branch: none
 > Preserved implementation HEAD: none
-> Separate active upstream implementation workspace: `reference/opencode/.worktrees/runtime-proof-surface` on branch `runtime-proof-surface @ 9747fef07`
-> That OpenCode worktree is currently clean (`git status --short` empty) and is the active location for the next upstream runtime-proof surface tasks.
+> Separate active upstream implementation workspace: none
+> The earlier `reference/opencode/.worktrees/runtime-proof-surface` checkout remains reference-only and clean at `9747fef07`; do not modify or commit there from this workflow.
 > Task 5 synthetic preflight/orchestration was completed, reviewed, merged locally to `main`, and its manual `.worktrees/task5-synthetic-preflight-orchestration` workspace was removed.
 > The latest Task 5 code is already in local `main` ancestry under merge commit `673f8a6`.
 > Task 6 design is now approved in `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`.
 > Task 6 implementation plan is now approved in `docs/superpowers/plans/2026-07-19-task6-real-preflight.md`.
 > Task 6 Task 1/2 synthetic implementation is now merged locally to `main` via `2f243ea`, adding machine-readable preflight outcomes plus a read-only continuation-validation CLI.
-> There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
-> The next implementation step is still Task 6 real preflight-only execution.
+> Task 6 later completed as a blocked real-preflight outcome; the committed evidence remains `tests/harness-acceptance/results/2026-07-19T152433Z/` with `reason_code = global_hard_gate_blocked` under the old contract.
+> There is still no scored acceptance run and no live acceptance evidence beyond that blocked preflight record.
+> The immediate next step is no longer “run Task 6 real preflight-only” — future work should start from the current proof-boundary-hardened `main` state and continue only if the user explicitly wants more Task 6 / Task 7 work.
 > Do not reopen Task 5 unless new evidence shows a concrete regression against the merged local `main` behavior or the approved Task 5 design/plan.
-> The parent `ccmem_paper` repository still needs a separate submodule-pointer commit if the user wants it to record this newer ResearchFlow state.
+> The parent `ccmem_paper` repository currently points to this newer ResearchFlow state; no additional submodule-pointer commit is needed unless later local commits are made here.
 > Local planning/design docs now include Task 5 and Task 6 records; preserve them unless the user explicitly asks otherwise.
 > Repo-local `.claude/worktrees/agent-a7e704d91a6ea7c24` no longer exists.
 > Repo-local `.claude/worktrees/agent-af92299cb5b976a2b` currently remains harness/session residue with local `.omc/`; do not discard it silently.
@@ -29,22 +30,22 @@
 > - Claude Code: `2.1.214`
 > - OpenCode: `1.18.3`
 > - Python: `3.9.13`
-> Future agents should treat the latest canonical local implementation state as repo-root `main @ b4cb6b8`, with Task 6 merged, a committed blocked real-preflight evidence set present, and Task 7 still not started.
+> Future agents should treat the latest canonical local implementation state as repo-root `main` including the 2026-07-21 reference-only OpenCode proof-boundary hardening merged during this pass. If an exact SHA matters, verify it at resume time.
 > The temporary repo-local implementation workspace `.worktrees/task6-real-preflight-20260719a` was merged back and removed; future agents should start from repo-root `main`, not revive it.
 > Root OpenWolf files were only partially refreshed in this pass; future agents should verify `.wolf/anatomy.md`, `.wolf/memory.md`, and `.wolf/buglog.json` against current repo state before relying on them.
 > End of current-state header.
 > 
 > Executive summary for next agent (10 lines max):
-> 1. ResearchFlow repo root stays on local `main @ a0708c5`; Task 5/Task 6 and the 2026-07-20 OpenCode proof-contract revision are already merged here.
-> 2. Final committed historical Task 6 evidence is still `tests/harness-acceptance/results/2026-07-19T152433Z/` and remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
-> 3. Under the revised 2026-07-20 ResearchFlow contract, comparable future reruns should classify as `runtime-proof-unavailable` unless a new authoritative OpenCode runtime-proof surface appears.
-> 4. Task 7 still has no continuation-ready entrypoint; do not run scored cases from current ResearchFlow `main`.
-> 5. The active next workstream is **OpenCode upstream**, not ResearchFlow consumer code.
-> 6. Active OpenCode implementation worktree: `reference/opencode/.worktrees/runtime-proof-surface` on branch `runtime-proof-surface @ 9747fef07`.
-> 7. OpenCode Task 1 is complete and review-clean; Task 2 has emitted additive `model` events and updated process-level JSON tests, but the latest reviewer still wants the canonical `model` event to read from shared `runtimeModelProof` state instead of raw `message.updated` payloads.
-> 8. Before resuming, inspect OpenCode files: `packages/opencode/src/cli/cmd/run.ts`, `packages/opencode/src/cli/cmd/run/session-data.ts`, `packages/opencode/src/cli/cmd/run/types.ts`, and `packages/opencode/test/cli/run/{runtime,run-process}.test.ts`.
-> 9. OpenCode worktree baseline is now usable when run correctly from `packages/opencode` with `bun`; earlier failures were caused by wrong cwd/test entrypoint, not by the runtime-proof feature code itself.
-> 10. Preserve repo-local `.claude/worktrees/agent-af92299cb5b976a2b` and any `.omc/`; do not clean harness worktrees without explicit approval.
+> 1. ResearchFlow repo root stays on local `main`; at handover refresh it included commits through `9932dda`, but verify exact SHA at resume time because later handover edits change HEAD.
+> 2. Historical Task 6 evidence remains `tests/harness-acceptance/results/2026-07-19T152433Z/` and is still blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
+> 3. Current harness boundary is now explicit: only current-run preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/` count as runtime model proof.
+> 4. `reference/opencode` is reference-only in this workflow; do not modify it or consume it as authoritative proof input.
+> 5. Task 7 is still not started; do not run scored cases unless a new continuation-ready Task 6 run is explicitly produced.
+> 6. The 2026-07-21 current-repo design/plan are `docs/superpowers/specs/2026-07-21-reference-opencode-proof-boundary-design.md` and `docs/superpowers/plans/2026-07-21-reference-opencode-proof-boundary.md`.
+> 7. Boundary-hardening implementation is merged locally to `main`; the temporary `.worktrees/proof-boundary` branch/worktree were merged and removed.
+> 8. Most recent merged verification on repo-root `main`: `./tests/harness-acceptance/run-tests.sh` = **111 passed**, `./tests/run-all.sh` = **pass**.
+> 9. OpenCode smoke still emits the pre-existing `[MODULE_TYPELESS_PACKAGE_JSON]` Node warning but exits successfully.
+> 10. Preserve repo-local `.claude/worktrees/agent-*` residue and any `.omc/`; do not clean them without explicit approval.
 > 
 > 
 > Historical notes below remain for provenance only.
@@ -94,8 +95,8 @@ Future agents start with this ResearchFlow repository root as their cwd. From th
 ResearchFlow is an intentional submodule of the parent `ccmem_paper` repository:
 
 - parent `.gitmodules` registers `reference/researchflow` with branch `main`;
-- the parent gitlink currently points to `b4cb6b8`, matching this repo-root checkout on `main`;
-- the parent no longer needs a gitlink update for the merged Task 6 work captured here, but it may still contain unrelated local changes outside this submodule;
+- the parent gitlink currently points to the current repo-root checkout on `main` as refreshed in this handover pass; verify the exact SHA with `git ls-tree HEAD reference/researchflow` from the parent repo if it matters;
+- the parent currently does not need a gitlink update for the merged current state captured here, but it may still contain unrelated local changes outside this submodule;
 - do not stage or commit unrelated parent-repo changes while working in ResearchFlow.
 
 The `.git` entry in this cwd is intentionally a submodule pointer:
@@ -128,20 +129,20 @@ Do **not** move existing harness-owned `agent-*` directories with filesystem `mv
 
 For new manually managed feature worktrees, use the ignored cwd-local `.worktrees/<feature>/` directory. This provides a discoverable cwd-relative location without relocating the standard submodule common-dir or harness-managed worktrees.
 
-Current inventory snapshot:
+Current inventory snapshot intentionally omits fixed counts because these worktree totals and residue paths drift quickly between sessions. Re-check live state with:
 
-- Git common-dir `agent-*` worktrees: 7 registered;
-- repo-local `.claude/worktrees/agent-*` directories: 21 present;
-- cwd-local `.worktrees`: zero remaining manual worktrees.
+```bash
+git worktree list --porcelain
+find .claude/worktrees -maxdepth 1 -type d -name 'agent-*' 2>/dev/null
+```
 
 Current notable worktree state:
 
-- repo-local `agent-a7e704d91a6ea7c24` still contains a historical tracked modification to `tests/claude-code/run-tests.sh` plus local `.omc/`; it must not be silently discarded;
-- many remaining harness-owned worktrees are session residue with only untracked `.omc/`;
-- some harness-owned worktrees also contain untracked `.superpowers/` or `__pycache__/` artifacts;
-- the previously discussed Task 4 source worktree `agent-a3d082809313796c3` and accidental review worktree `agent-abee9411bb8fc2bd2` have already been manually removed.
+- repo-local `.claude/worktrees/agent-*` directories may remain as harness/session residue with local `.omc/`, `.superpowers/`, or `__pycache__/` artifacts;
+- repo-local `.claude/worktrees/agent-af92299cb5b976a2b` remains specifically called out elsewhere in this handover and must not be silently discarded;
+- the previously discussed Task 4 source worktree `agent-a3d082809313796c3` and accidental review worktree `agent-abee9411bb8fc2bd2` were already manually removed in earlier passes.
 
-Treat any additional cleanup as destructive shared-state work: review exact paths and dirty state before removal.
+Treat any additional cleanup as destructive shared-state work: review exact live paths and dirty state before removal.
 
 ### 2.4 Local reference-library symlinks
 
@@ -161,12 +162,12 @@ All five links currently resolve to the corresponding parent `ccmem_paper/refere
 
 The original live-harness design/handover work happened on `docs/live-harness-acceptance-design`, but the repository-root checkout is no longer on that branch.
 
-Current repo-root state:
+Current repo-root state at handover refresh:
 
 - branch: `main`;
-- HEAD: `b4cb6b8 Merge branch 'task6-real-preflight-20260719a'`;
+- local `main` included `9932dda` when refreshed, but re-check exact HEAD if it matters because this handover file may itself be committed later;
 - upstream: `origin/main`;
-- local `main` is currently aligned with `origin/main` (`0 ahead / 0 behind`).
+- local `main` was aligned with `origin/main` (`0 ahead / 0 behind`) when refreshed.
 
 Use the historical design branch only when you specifically need to inspect the earlier design-only checkout state.
 
@@ -180,7 +181,7 @@ The later `.worktrees/task5-synthetic-preflight-orchestration/` workspace used f
 
 The later `.worktrees/task6-real-preflight-20260719a/` workspace used for Task 6 implementation, review loops, and final real preflight evidence has also been merged into `main` and removed.
 
-Future implementation should start from repo-root `main @ b4cb6b8` or a fresh new repo-local worktree created from it. Do not assume any earlier Task 4/Task 5/Task 6 convenience checkout still exists.
+Future implementation should start from repo-root `main` as observed at resume time, or from a fresh new repo-local worktree created from that current `main`. Do not assume any earlier Task 4 / Task 5 / Task 6 / proof-boundary convenience checkout still exists.
 
 ## 3. Completed thin-router delivery
 
@@ -383,7 +384,7 @@ What is now verified on merged `main @ ab71a30`:
 - task-scoped and whole-branch reviews both passed, with only one final non-blocking minor note about stale helper parameters in `tests/harness-acceptance/test_adapters.py`;
 - no real Claude Code, OpenCode, LiteLLM, network, or paid-model invocation was performed during the Task 4 closure pass.
 
-Task 4 is therefore **synthetically review-closed only**. This does **not** mean live acceptance has been run. There is still no real preflight-only run, no scored acceptance run, and no live acceptance evidence.
+Task 4 is therefore **synthetically review-closed only**. Historical note: at the time of Task 4 closure there was still no real preflight-only run, no scored acceptance run, and no live acceptance evidence. Later Task 6 work changed that state by adding a blocked real-preflight evidence set.
 
 ### 5.5 Tasks 5–7 — current status
 
@@ -395,104 +396,55 @@ Task 4 is therefore **synthetically review-closed only**. This does **not** mean
   Current-proof-boundary note: `reference/opencode` is reference-only in the current workflow and must not be consumed as authoritative runtime proof input for Task 6 / Task 7 continuation decisions. Current ResearchFlow harness evaluation accepts runtime model proof only from the current run's preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/`.
 - Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
 
-### 5.6 New active workstream — OpenCode upstream authoritative runtime-proof surface
+### 5.6 Current-repo OpenCode proof-boundary hardening — complete on `main`
 
-The user explicitly redirected the next workstream away from immediate Task 6/Task 7 reruns and toward **OpenCode upstream runtime-proof surface work**.
+The earlier OpenCode-upstream runtime-proof surface workstream is no longer the active operational target for this repo.
 
-Approved new ResearchFlow-side design / plan records for that upstream workstream:
+The user later clarified that `reference/opencode` is reference-only in this workflow and must not be modified, committed, or consumed as authoritative runtime proof input. The accepted implementation scope moved back into the current ResearchFlow repo.
 
-- Spec: `docs/superpowers/specs/2026-07-20-opencode-runtime-proof-surface-design.md`
-- Plan: `docs/superpowers/plans/2026-07-20-opencode-runtime-proof-surface.md`
+Approved current-repo design / plan records for this follow-up workstream:
 
-Scope boundaries for this new workstream:
+- Spec: `docs/superpowers/specs/2026-07-21-reference-opencode-proof-boundary-design.md`
+- Plan: `docs/superpowers/plans/2026-07-21-reference-opencode-proof-boundary.md`
 
-- upstream-only subproject A;
-- no ResearchFlow consumer changes yet;
-- dual-track surface design:
-  - canonical authoritative `model` event on `opencode run --format json`;
-  - dedicated `debug proof` / `debug model` surface derived from the same execution-scoped runtime truth;
-- keep `run --format json` as the only authoritative machine-consumable source for downstream gating;
-- keep the debug proof surface diagnostic-only;
-- keep fail-closed semantics whenever runtime proof is unavailable or unverified.
+What this merged current-repo work now guarantees:
 
-Current active OpenCode implementation workspace and branch:
+- runtime model proof input is accepted only from the current run's preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/`;
+- `reference/opencode` remains diagnostic/reference material only;
+- both `tests/harness-acceptance/preflight.py` and `tests/harness-acceptance/run.py` route through the same shared proof-loader boundary in `tests/harness-acceptance/lib.py`;
+- untrusted `results_root`, symlinked proof-file escapes, cross-run proof borrowing, and symlinked run-dir aliases now fail closed;
+- no new proof source or Task 7 continuation path was introduced.
 
-- repo: `reference/opencode`
-- manual repo-local worktree: `.worktrees/runtime-proof-surface`
-- branch: `runtime-proof-surface`
-- current HEAD at handover refresh: `9747fef07`
-- current worktree state at handover refresh: clean (`git -C reference/opencode/.worktrees/runtime-proof-surface status --short` empty)
+Merged local `main` now includes the current-repo proof-boundary hardening commit series through `9932dda`, including:
 
-OpenCode baseline debugging outcome already established:
+- `1f548a4` — `test: guard trusted runtime proof root`
+- `97db10a` — `fix: keep runtime proof artifacts inside the current run`
+- `1643d32` — `fix: keep preflight proof reads current-run only`
+- `60db5ae` — `refactor: share trusted proof loader`
+- `abef2b3` — `docs: clarify reference-only opencode proof boundary`
+- `fc4e67d` — `fix: reject untrusted harness results roots`
+- `9932dda` — `fix: reject symlinked run alias proof paths`
 
-- earlier failures were not runtime-proof feature regressions;
-- they came from running Bun tests from the wrong cwd / wrong package entrypoint and from not having completed `bun install` in the OpenCode worktree root;
-- the corrected baseline pattern is package-level execution from `reference/opencode/.worktrees/runtime-proof-surface/packages/opencode`.
+The temporary repo-local implementation workspace `.worktrees/proof-boundary` was merged back and removed after verification. Future agents should work from repo-root `main`, not recreate the earlier boundary-hardening branch unless the user asks for more changes in this area.
 
-Commands already confirmed usable for the corrected OpenCode baseline:
+The earlier `reference/opencode/.worktrees/runtime-proof-surface` checkout still exists as reference-only context at `9747fef07`, but it is not part of the accepted implementation surface for this repo.
 
-- `env -C reference/opencode/.worktrees/runtime-proof-surface/packages/opencode bun test test/cli/run/session-data.test.ts`
-- `env -C reference/opencode/.worktrees/runtime-proof-surface/packages/opencode bun test test/cli/run/runtime.test.ts`
-
-OpenCode upstream work completed so far:
-
-- `0dff86992` — `test(opencode): record runtime model proof state`
-  - Task 1 initial execution-scoped runtime proof record
-- `5a46e20a4` — `fix(opencode): preserve runtime proof in subagent compaction`
-  - Task 1 review-fix preserving proof state through child/session compaction
-- `89c818b95` — `feat(opencode): emit runtime model event`
-  - Task 2 initial additive canonical `model` event on non-interactive run path
-- `9747fef07` — `test(opencode): cover additive model events in json contract`
-  - Task 2 review-fix updating process-level JSON contract tests for the additive `model` event
-
-OpenCode task-state summary:
-
-- **Task 1:** complete and review-clean
-- **Task 2:** not yet accepted as complete
-
-Remaining OpenCode reviewer finding for Task 2:
-
-- the canonical `model` event in `packages/opencode/src/cli/cmd/run.ts` still derives its payload directly from raw `message.updated` payloads;
-- the reviewer wants that event to read from the shared execution-scoped `runtimeModelProof` state established in Task 1, so that future canonical run-path proof and the later `debug proof` surface are guaranteed to share one truth source;
-- the user explicitly approved pulling that requirement forward into Task 2 instead of deferring it.
-
-Concrete resume guidance for the next agent on the OpenCode workstream:
-
-1. work in `reference/opencode/.worktrees/runtime-proof-surface`;
-2. inspect `packages/opencode/src/cli/cmd/run.ts`, `packages/opencode/src/cli/cmd/run/session-data.ts`, and `packages/opencode/src/cli/cmd/run/types.ts` together;
-3. change the canonical `model` event emission path so it consumes the shared execution-scoped `runtimeModelProof` state instead of reading directly from raw `message.updated` payloads;
-4. re-run the focused package-level suites:
-   - `test/cli/run/runtime.test.ts`
-   - `test/cli/run/run-process.test.ts`
-   - and any other targeted suite required by that change;
-5. only after Task 2 review passes, continue into Task 3 (`debug proof`).
-
-Additional operational notes for the next agent:
-
-- root-level `bun test ...` in `reference/opencode` is a trap because `reference/opencode/package.json` intentionally exits with `do not run tests from root`;
-- use package-level `env -C .../packages/opencode bun test ...` commands for focused upstream tests;
-- do not change ResearchFlow consumer logic during this upstream-only cycle;
-- do not reinterpret or rewrite the historical Task 6 blocked evidence while working on OpenCode upstream;
-- the parent `ccmem_paper` repo will later need a separate submodule-pointer commit if the user wants to record either the current ResearchFlow state or the future OpenCode branch state.
-
-Historical Task 6 / Task 7 continuation notes below remain valid provenance, but future agents should treat this OpenCode-upstream block as the current operational starting point.
-
-End of current upstream-workstream note.
+End of current current-repo follow-up note.
 
 Real Claude Code and OpenCode invocations were performed during Task 6 preflight-only execution. No scored acceptance invocation has been performed yet.
 
 ## 6. Current test status
 
-Most recent local verification on merged repo-root `main @ b4cb6b8`:
+Most recent local verification on merged repo-root `main` at handover refresh:
 
 ```bash
 ./tests/harness-acceptance/run-tests.sh
 ./tests/run-all.sh
 ```
 
-Result on 2026-07-20:
+Result on 2026-07-22:
 
-- harness acceptance synthetic suite: **101 passed, 0 failed**
+- harness acceptance synthetic suite: **111 passed, 0 failed**
 - OpenCode bootstrap smoke test: passed
 - Claude metadata/file smoke coverage plus repo-local routing-doc smoke coverage: passed
 - all three workflow demo contract tests: passed
@@ -507,18 +459,21 @@ Safe tool versions observed without exposing configuration values:
 
 ## 7. Exact next step for the next agent
 
-Resume from repo-root `main @ b4cb6b8`.
+Resume from repo-root `main` and verify the exact SHA at start if that matters; this handover file may have advanced HEAD again by the time the next agent reads it.
 
-The next implementation step is no longer deciding whether to revise the OpenCode proof contract; that revision is now recorded in the Task 6 docs. Future work, if any, is to preserve the historical blocked evidence, pursue a new authoritative OpenCode runtime-proof surface, or produce a fresh Task 6 run under the revised contract. Do not reopen Task 5 unless new evidence shows a concrete regression or a spec mismatch against merged `main`.
+The current-repo proof-boundary hardening is complete. The next step is no longer OpenCode-upstream surface work from this repo. Future work, if any, should proceed from the current ResearchFlow repo state and follow these rules:
 
-Recommended procedure from this cwd:
-
-1. Verify current git state and whether the user wants any push/sync action; repo-root `main` is currently aligned with `origin/main`.
-2. Read the updated Task 6 design and plan:
+1. Treat `reference/opencode` as reference-only. Do not modify it and do not consume it as authoritative runtime proof input.
+2. If continuing Task 6 / Task 7 work, first read:
 
    ```text
-   docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md
-   docs/superpowers/plans/2026-07-19-task6-real-preflight.md
+   docs/superpowers/specs/2026-07-21-reference-opencode-proof-boundary-design.md
+   docs/superpowers/plans/2026-07-21-reference-opencode-proof-boundary.md
+   tests/harness-acceptance/lib.py
+   tests/harness-acceptance/preflight.py
+   tests/harness-acceptance/run.py
+   tests/harness-acceptance/test_preflight.py
+   tests/harness-acceptance/test_run.py
    ```
 
 3. Review the committed blocked evidence set:
@@ -527,17 +482,16 @@ Recommended procedure from this cwd:
    tests/harness-acceptance/results/2026-07-19T152433Z/
    ```
 
-4. If the user wants to continue Task 6/7 work, start from a fresh clean repo-local worktree or fresh environment based on current `main`; prefer `./.worktrees/` or `./.claude/worktrees/`, not parent `.git/modules/.../.claude/worktrees/agent-*` paths.
-5. Re-run the synthetic baseline before any new real-harness work:
+4. Re-run the synthetic baseline before any new real-harness work:
 
    ```bash
    ./tests/harness-acceptance/run-tests.sh
    ./tests/run-all.sh
    ```
 
-6. Do not run scored cases unless a new continuation-ready Task 6 run is explicitly produced.
+5. Do not run scored cases unless a new continuation-ready Task 6 run is explicitly produced.
+6. Do not infer canonical model identity from static config, route labels, resolved config dumps, or anything under `reference/opencode`; only current-run redacted proof artifacts can establish runtime proof in this repo.
 7. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
-8. Do not infer canonical model identity from static config, route labels, or resolved config dumps; only real redacted proof can establish it.
 
 ## 8. Remaining implementation order and stop conditions
 
@@ -561,7 +515,7 @@ Hard stops:
 ## 9. Known limitations and unresolved work
 
 - Claude Code still has no saved real fresh-session routing transcript beyond the Task 6 preflight proof artifacts.
-- OpenCode still has no authoritative runtime model-proof surface on the current `openai-compatible` path. The historical `tests/harness-acceptance/results/2026-07-19T152433Z/` run remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`; under the revised 2026-07-20 contract, comparable future runs should classify as `runtime-proof-unavailable` unless a new authoritative runtime proof surface appears.
+- OpenCode still has no accepted authoritative runtime model-proof input for current ResearchFlow continuation decisions beyond the current run's own trusted preflight artifacts. The historical `tests/harness-acceptance/results/2026-07-19T152433Z/` run remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`; under the revised contract plus the 2026-07-21 boundary hardening, comparable future runs should classify as `runtime-proof-unavailable` unless a new accepted authoritative runtime proof surface is explicitly integrated.
 - No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists from both harnesses.
 - No scored acceptance result exists; do not claim acceptance, stability, or release readiness.
 - Release version remains `0.1.0`.
@@ -569,13 +523,13 @@ Hard stops:
 - Cross-artifact semantic checks and contract-schema centralization remain separate future work.
 - Repo-local `.claude/worktrees/agent-af92299cb5b976a2b` remains harness/session residue with local `.omc/`; preserve it unless the user explicitly approves cleanup.
 - Many remaining harness worktrees may still be session residue with `.omc/` or other untracked local artifacts; clean them only with explicit per-path review and user approval.
-- The parent `ccmem_paper` repository still needs a separate submodule-pointer commit if the user wants it to record ResearchFlow `main @ b4cb6b8`.
+- The parent `ccmem_paper` repository currently reflects this ResearchFlow state at handover refresh time; only future local commits here would require another parent gitlink update.
 
 ## 10. Safety and workflow reminders
 
 - Future agents should treat this repository root as cwd; use cwd-relative paths and direct Git commands.
 - Do not commit unrelated parent-repo changes.
-- The cwd-local `reference/` symlinks are ignored local research inputs; do not force-add, rewrite, or delete them.
+- The cwd-local `reference/` symlinks are ignored local research inputs; do not force-add, rewrite, or delete them. In particular, `reference/opencode` is reference-only and must not be treated as an implementation or proof source from this repo.
 - Keep the standard submodule Git common-dir at the parent `.git/modules/reference/researchflow`; do not manually relocate it.
 - New manual worktrees belong under `.worktrees/`; existing harness-owned `.claude/worktrees/agent-*` stay registered where Git/Claude created them.
 - Do not stage any worktree's `.omc/` directory.
