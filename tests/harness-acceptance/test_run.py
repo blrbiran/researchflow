@@ -125,7 +125,12 @@ class RunTest(unittest.TestCase):
             },
         )
 
-    def install_fake_adapter(self, blocked_harness: str | None = None, case_calls: list[tuple[str, str]] | None = None):
+    def install_fake_adapter(
+        self,
+        blocked_harness: str | None = None,
+        case_calls: list[tuple[str, str]] | None = None,
+        proof_overrides: dict[str, dict] | None = None,
+    ):
         original = self.run_module._run_adapter
 
         def fake_run_adapter(harness: str, mode: str, config_path: Path, output_dir: Path, case_id: str | None = None):
@@ -140,6 +145,8 @@ class RunTest(unittest.TestCase):
                 proof = copy.deepcopy(self.base_model_proof)
                 proof["harness"] = harness
                 proof["requested_route"] = "fable" if harness == "claude" else "openai/synthetic-model"
+                if proof_overrides is not None and harness in proof_overrides:
+                    proof.update(copy.deepcopy(proof_overrides[harness]))
                 write_json(output_dir / f"{harness}.json", preflight)
                 write_json(output_dir / f"{harness}-model-proof.json", proof)
                 return
@@ -154,6 +161,24 @@ class RunTest(unittest.TestCase):
 
         self.run_module._run_adapter = fake_run_adapter
         self.addCleanup(setattr, self.run_module, "_run_adapter", original)
+
+    def install_summary_stub(self, summary_calls: list[tuple[str, int]] | None = None):
+        original = self.run_module._write_summary_outputs
+
+        def fake_write_summary_outputs(run_dir: Path, cases: list[dict]):
+            if summary_calls is not None:
+                summary_calls.append((run_dir.name, len(cases)))
+
+        self.run_module._write_summary_outputs = fake_write_summary_outputs
+        self.addCleanup(setattr, self.run_module, "_write_summary_outputs", original)
+
+    def make_conditional_opencode_proof(self) -> dict:
+        return {
+            "backing_model_id": "unknown",
+            "resolved_model_identity": None,
+            "verified": False,
+            "proof_method": "missing-model-metadata",
+        }
 
     def test_preflight_only_blocked_writes_summary_and_never_runs_cases(self):
         case_calls: list[tuple[str, str]] = []
@@ -179,6 +204,8 @@ class RunTest(unittest.TestCase):
             self.assertEqual(baseline["scored_prompt_sha256"], self.lib.sha256_path(HARNESS_DIR / "scored-prompt.txt"))
             self.assertEqual(baseline["plugin_source_id"], config["plugin_source_id"])
             self.assertEqual(baseline["residual_categories"], config["residual_categories"])
+            self.assertEqual(baseline["continuation_class"], "strong")
+            self.assertEqual(baseline["proof_facts"], {})
             for harness in ("claude", "opencode"):
                 self.assertEqual(
                     baseline["harnesses"][harness]["cli_bin"],
@@ -207,6 +234,54 @@ class RunTest(unittest.TestCase):
             self.assertRegex(baseline["fingerprint_sha256"], r"^[0-9a-f]{64}$")
             self.assertFalse((run_dir / "summary.json").exists())
             self.assertFalse((run_dir / "summary.md").exists())
+
+    def test_preflight_only_conditional_writes_baseline_without_summary(self):
+        summary_calls: list[tuple[str, int]] = []
+        self.install_summary_stub(summary_calls)
+        self.install_fake_adapter(proof_overrides={"opencode": self.make_conditional_opencode_proof()})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(self.trusted_results_root)
+            run_dir = self.run_module.run_original(config, "2026-07-22T160000Z", "preflight-only")
+            baseline = json.loads((run_dir / "preflight" / "baseline.json").read_text(encoding="utf-8"))
+            self.assertEqual(baseline["continuation_class"], "conditional-opencode")
+            self.assertEqual(baseline["proof_facts"], {"opencode_runtime_proof": "unavailable"})
+            self.assertFalse((run_dir / "summary.json").exists())
+            self.assertFalse((run_dir / "summary.md").exists())
+            self.assertEqual(summary_calls, [])
+            self.assertIsNone(baseline["harnesses"]["opencode"]["canonical_identity"])
+            self.assertRegex(baseline["fingerprint_sha256"], r"^[0-9a-f]{64}$")
+            self.assertRegex(baseline["harnesses"]["opencode"]["proof_sha256"], r"^[0-9a-f]{64}$")
+            self.assertRegex(baseline["harnesses"]["opencode"]["endpoint_identity_sha256"], r"^[0-9a-f]{64}$")
+            self.assertTrue(baseline["harnesses"]["opencode"]["plugin_proof_strength"])
+
+    def test_preflight_only_non_continuation_state_writes_summary_not_baseline(self):
+        summary_calls: list[tuple[str, int]] = []
+        self.install_summary_stub(summary_calls)
+        self.install_fake_adapter(blocked_harness="claude")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(self.trusted_results_root)
+            run_dir = self.run_module.run_original(config, "2026-07-22T160250Z", "preflight-only")
+            self.assertEqual(run_dir.name, "2026-07-22T160250Z")
+            self.assertEqual(run_dir.parent.resolve(), self.trusted_results_root.resolve())
+            self.assertFalse((run_dir / "preflight" / "baseline.json").exists())
+            self.assertEqual(summary_calls, [("2026-07-22T160250Z", len(self.case_ids))])
+            self.assertFalse((run_dir / "summary.json").exists())
+            self.assertFalse((run_dir / "summary.md").exists())
+            self.assertTrue((run_dir / "environment.json").exists())
+            self.assertTrue((run_dir / "preflight" / "claude.json").exists())
+            self.assertTrue((run_dir / "preflight" / "opencode.json").exists())
+            self.assertTrue((run_dir / "capabilities" / "claude.json").exists())
+            self.assertTrue((run_dir / "capabilities" / "opencode.json").exists())
+            self.assertFalse((run_dir / "claude").exists())
+            self.assertFalse((run_dir / "opencode").exists())
+            self.assertEqual(json.loads((run_dir / "preflight" / "claude.json").read_text(encoding="utf-8"))["status"], "blocked")
+            self.assertEqual(json.loads((run_dir / "preflight" / "opencode.json").read_text(encoding="utf-8"))["status"], "pass")
+            self.assertTrue((run_dir / "preflight" / "claude-model-proof.json").exists())
+            self.assertTrue((run_dir / "preflight" / "opencode-model-proof.json").exists())
+            self.assertEqual(summary_calls[0][0], run_dir.name)
+            self.assertEqual(summary_calls[0][1], len(self.case_ids))
 
     def test_run_original_rejects_untrusted_results_root_before_writes(self):
         self.install_fake_adapter()
@@ -264,9 +339,29 @@ class RunTest(unittest.TestCase):
                 "claude": {"proof_sha256": "a" * 64, "endpoint_identity_sha256": "b" * 64},
                 "opencode": {"proof_sha256": "c" * 64, "endpoint_identity_sha256": "d" * 64},
             }
-            baseline = self.run_module.build_baseline_record(repo_root, config, evaluations, model_proofs)
+            strong_state = {
+                "outcome": "continuation-ready-strong",
+                "proof_facts": {},
+            }
+            conditional_state = {
+                "outcome": "continuation-ready-conditional",
+                "proof_facts": {"opencode_runtime_proof": "unavailable"},
+            }
+            baseline = self.run_module.build_baseline_record(repo_root, config, evaluations, model_proofs, strong_state)
+            conditional_baseline = self.run_module.build_baseline_record(
+                repo_root,
+                config,
+                evaluations,
+                model_proofs,
+                conditional_state,
+            )
             self.assertEqual(baseline["cases_sha256"], self.lib.sha256_path(cases_path))
             self.assertEqual(baseline["scored_prompt_sha256"], self.lib.sha256_path(prompt_path))
+            self.assertEqual(baseline["continuation_class"], "strong")
+            self.assertEqual(baseline["proof_facts"], {})
+            self.assertEqual(conditional_baseline["continuation_class"], "conditional-opencode")
+            self.assertEqual(conditional_baseline["proof_facts"], {"opencode_runtime_proof": "unavailable"})
+            self.assertNotEqual(baseline["fingerprint_sha256"], conditional_baseline["fingerprint_sha256"])
 
     def test_scored_requires_aligned_baseline_and_runs_cases_in_fixed_order(self):
         case_calls: list[tuple[str, str]] = []
@@ -280,6 +375,38 @@ class RunTest(unittest.TestCase):
             expected = [("claude", case_id) for case_id in self.case_ids] + [("opencode", case_id) for case_id in self.case_ids]
             self.assertEqual(case_calls, expected)
             self.assertTrue((run_dir / "summary.json").exists())
+
+    def test_scored_accepts_conditional_baseline(self):
+        case_calls: list[tuple[str, str]] = []
+        summary_calls: list[tuple[str, int]] = []
+        self.install_summary_stub(summary_calls)
+        self.install_fake_adapter(
+            case_calls=case_calls,
+            proof_overrides={"opencode": self.make_conditional_opencode_proof()},
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.make_config()
+            config["results_root"] = str(self.trusted_results_root)
+            run_dir = self.run_module.run_original(config, "2026-07-22T160500Z", "preflight-only")
+            baseline = json.loads((run_dir / "preflight" / "baseline.json").read_text(encoding="utf-8"))
+            self.assertEqual(baseline["continuation_class"], "conditional-opencode")
+            self.assertEqual(baseline["proof_facts"], {"opencode_runtime_proof": "unavailable"})
+            rerun_dir = self.run_module.run_original(config, "2026-07-22T160500Z", "scored")
+            self.assertEqual(run_dir, rerun_dir)
+            expected = [("claude", case_id) for case_id in self.case_ids] + [("opencode", case_id) for case_id in self.case_ids]
+            self.assertEqual(case_calls, expected)
+            self.assertEqual(summary_calls, [(run_dir.name, len(self.case_ids))])
+            self.assertFalse((run_dir / "summary.json").exists())
+            self.assertFalse((run_dir / "summary.md").exists())
+            self.assertEqual(sorted(path.name for path in (run_dir / "claude").iterdir()), sorted(self.case_ids))
+            self.assertEqual(sorted(path.name for path in (run_dir / "opencode").iterdir()), sorted(self.case_ids))
+            self.assertTrue(all((run_dir / "claude" / case_id / "verdict.json").exists() for case_id in self.case_ids))
+            self.assertTrue(all((run_dir / "opencode" / case_id / "verdict.json").exists() for case_id in self.case_ids))
+            self.assertIsNone(baseline["harnesses"]["opencode"]["canonical_identity"])
+            self.assertEqual(baseline["harnesses"]["claude"]["canonical_identity"], "openai/synthetic-model")
+            self.assertRegex(baseline["fingerprint_sha256"], r"^[0-9a-f]{64}$")
+            self.assertEqual(run_dir.name, "2026-07-22T160500Z")
+            self.assertEqual(run_dir.parent.resolve(), self.trusted_results_root.resolve())
 
     def test_scored_rejects_changed_baseline_or_existing_case_artifacts(self):
         self.install_fake_adapter()

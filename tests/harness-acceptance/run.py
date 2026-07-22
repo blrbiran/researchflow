@@ -61,8 +61,10 @@ def build_baseline_record(
     config: dict[str, Any],
     evaluations: dict[str, dict[str, Any]],
     model_proofs: dict[str, dict[str, Any]],
+    continuation_state: dict[str, Any],
 ) -> dict[str, Any]:
     harness_dir = repo_root / "tests" / "harness-acceptance"
+    continuation_class = "strong" if continuation_state["outcome"] == "continuation-ready-strong" else "conditional-opencode"
     record = {
         "schema_version": 1,
         "repo_commit_sha": config["repo_commit_sha"],
@@ -71,6 +73,8 @@ def build_baseline_record(
         "timeout_seconds": int(config["timeout_seconds"]),
         "plugin_source_id": config["plugin_source_id"],
         "residual_categories": list(config["residual_categories"]),
+        "continuation_class": continuation_class,
+        "proof_facts": dict(continuation_state.get("proof_facts") or {}),
         "harnesses": {
             harness: {
                 "cli_bin": config[harness]["cli_bin"],
@@ -276,17 +280,18 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
                 model_proof = lib.load_runtime_model_proof_artifact(run_dir, harness, HARNESS_DIR / "results")
                 evaluations[harness] = preflight.evaluate_preflight(capability, preflight_record, model_proof, identities)
                 model_proofs[harness] = model_proof
-            alignment = preflight.evaluate_model_alignment(evaluations["claude"], evaluations["opencode"])
-            if alignment["aligned"]:
+            continuation_state = preflight.determine_preflight_outcome(evaluations["claude"], evaluations["opencode"])
+            if continuation_state["outcome"] in {"continuation-ready-strong", "continuation-ready-conditional"}:
                 lib.write_json(
                     baseline_path,
-                    build_baseline_record(target_root, config_with_run, evaluations, model_proofs),
+                    build_baseline_record(target_root, config_with_run, evaluations, model_proofs, continuation_state),
                 )
                 return run_dir
             _write_summary_outputs(run_dir, cases)
             return run_dir
 
         baseline = lib.read_json(baseline_path)
+        continuation_class = baseline.get("continuation_class")
         evaluations = {
             harness: preflight.evaluate_preflight(
                 lib.read_json(capabilities_dir / f"{harness}.json"),
@@ -296,11 +301,11 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
             )
             for harness in HARNESSES
         }
-        alignment = preflight.evaluate_model_alignment(evaluations["claude"], evaluations["opencode"])
         if any(result["status"] != "pass" for result in evaluations.values()):
             raise ValueError("scored phase requires passing preflight")
-        if not alignment["aligned"]:
-            raise ValueError("scored phase requires aligned preflight")
+        continuation_state = preflight.determine_preflight_outcome(evaluations["claude"], evaluations["opencode"])
+        if continuation_state["outcome"] not in {"continuation-ready-strong", "continuation-ready-conditional"}:
+            raise ValueError("scored phase requires continuation-ready preflight")
         expected_baseline = build_baseline_record(
             target_root,
             config_with_run,
@@ -309,10 +314,13 @@ def run_original(config: dict[str, Any], run_id: str, mode: str) -> Path:
                 harness: lib.load_runtime_model_proof_artifact(run_dir, harness, HARNESS_DIR / "results")
                 for harness in HARNESSES
             },
+            continuation_state,
         )
         if baseline != expected_baseline:
             raise ValueError("baseline fingerprint mismatch")
-        if (run_dir / "summary.json").exists():
+        if continuation_class not in {"strong", "conditional-opencode"}:
+            raise ValueError("unknown continuation class")
+        if (run_dir / "summary.json").exists() or (run_dir / "summary.md").exists():
             raise ValueError("scored phase already completed")
         for harness in HARNESSES:
             harness_dir = run_dir / harness
