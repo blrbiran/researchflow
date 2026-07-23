@@ -340,7 +340,8 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual({row["reason_code"] for row in opencode_rows}, {"global_hard_gate_blocked"})
         self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
 
-    def test_build_summary_marks_runtime_proof_unavailable_reason(self):
+    def test_build_summary_marks_conditional_acceptance_with_disclosure(self):
+        self.set_allowlist({"gpt-5.4": "openai/gpt-5.4"})
         run_dir = self.make_run_dir()
         write_json(run_dir / "preflight" / "claude.json", {**self.base_preflights["claude"], "status": "pass"})
         write_json(run_dir / "preflight" / "opencode.json", {**self.base_preflights["opencode"], "status": "pass"})
@@ -361,11 +362,43 @@ class SummarizeTest(unittest.TestCase):
         opencode_proof["requested_route"] = "openai-compatible/gpt-5.4"
         write_json(run_dir / "preflight" / "opencode-model-proof.json", opencode_proof)
 
+        for harness in ("claude", "opencode"):
+            for case_id in self.case_ids:
+                self.write_attempted_case(run_dir, harness, case_id)
+
         summary = self.summarize.build_summary(run_dir, self.cases)
-        self.assertEqual(summary["outcome"], "blocked")
-        self.assertEqual(summary["reason_code"], self.summarize.lib.REASON_CODES[5])
-        self.assertEqual({row["reason_code"] for row in summary["accounting_rows"]}, {self.summarize.lib.REASON_CODES[5]})
-        self.assertTrue(all(row["status"] == "unattempted" for row in summary["accounting_rows"]))
+        markdown = self.summarize.render_summary_markdown(summary)
+        self.assertEqual(summary["outcome"], "accepted")
+        self.assertTrue(summary["acceptance_passed"])
+        self.assertEqual(summary["acceptance_class"], "conditional-opencode")
+        self.assertEqual(summary["reason_code"], None)
+        self.assertEqual(summary["proof_facts"], {"opencode_runtime_proof": "unavailable"})
+        self.assertIn(
+            "OpenCode runtime model identity was not authoritatively proved.",
+            summary["acceptance_disclosure"],
+        )
+        self.assertIn("## Acceptance", markdown)
+        self.assertIn("- Acceptance class: `conditional-opencode`", markdown)
+        self.assertIn("OpenCode runtime model identity was not authoritatively proved.", markdown)
+
+    def test_build_summary_strong_acceptance_has_strong_class_without_conditional_disclosure(self):
+        self.set_allowlist({"synthetic-model": "openai/synthetic-model"})
+        run_dir = self.make_run_dir()
+        for harness in ("claude", "opencode"):
+            for case_id in self.case_ids:
+                self.write_attempted_case(run_dir, harness, case_id)
+
+        summary = self.summarize.build_summary(run_dir, self.cases)
+        markdown = self.summarize.render_summary_markdown(summary)
+        self.assertEqual(summary["outcome"], "accepted")
+        self.assertTrue(summary["acceptance_passed"])
+        self.assertEqual(summary["acceptance_class"], "strong")
+        self.assertEqual(summary["reason_code"], None)
+        self.assertEqual(summary["proof_facts"], {})
+        self.assertEqual(summary["acceptance_disclosure"], [])
+        self.assertIn("## Acceptance", markdown)
+        self.assertIn("- Acceptance class: `strong`", markdown)
+        self.assertNotIn("OpenCode runtime model identity was not authoritatively proved.", markdown)
 
     def test_build_summary_raw_preflight_block_does_not_use_runtime_proof_unavailable(self):
         run_dir = self.make_run_dir()

@@ -280,20 +280,27 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
     progress_made = any(attempted[harness] for harness in HARNESSES)
 
     preflight_statuses = {harness: states[harness]["preflight_status"] for harness in HARNESSES}
+    derived = preflight_contract.determine_preflight_outcome(
+        states["claude"]["evaluated_preflight"],
+        states["opencode"]["evaluated_preflight"],
+    )
+    proof_facts = dict(derived.get("proof_facts") or {})
     outcome = None
     reason_code = None
+    acceptance_class = None
+    acceptance_disclosure: list[str] = []
+    alignment_reason = None
+
     if any(status != "pass" for status in preflight_statuses.values()):
         if progress_made:
             raise ValueError("attempted case artifacts are not allowed when any preflight is blocked")
-        derived = preflight_contract.determine_preflight_outcome(
-            states["claude"]["evaluated_preflight"],
-            states["opencode"]["evaluated_preflight"],
-        )
         outcome = derived["outcome"]
         reason_code = derived["reason_code"]
         accounting_rows: list[dict[str, Any]] = []
         for harness in HARNESSES:
-            row_reason_code = f"{harness}_preflight_blocked" if preflight_statuses[harness] == "blocked" else "global_hard_gate_blocked"
+            row_reason_code = (
+                f"{harness}_preflight_blocked" if preflight_statuses[harness] == "blocked" else "global_hard_gate_blocked"
+            )
             if row_reason_code not in REASON_CODES:
                 raise ValueError(f"unknown reason code: {row_reason_code}")
             for case_id in case_order:
@@ -304,13 +311,10 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         canonical_identity = None
     else:
         aligned, canonical_identity, alignment_reason = _alignment_reason(states)
-        if not aligned:
+        continuation_ready = derived["outcome"] in {"continuation-ready-strong", "continuation-ready-conditional"}
+        if not aligned and not continuation_ready:
             if progress_made:
                 raise ValueError("attempted case artifacts are not allowed when model alignment is blocked")
-            derived = preflight_contract.determine_preflight_outcome(
-                states["claude"]["evaluated_preflight"],
-                states["opencode"]["evaluated_preflight"],
-            )
             outcome = derived["outcome"]
             reason_code = derived["reason_code"]
             row_reason_code = derived["reason_code"] or alignment_reason
@@ -394,16 +398,31 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
     contamination_total = sum(
         harness_summaries[harness]["contamination"]["contaminated_invocations"] for harness in HARNESSES
     )
+    if all(row["status"] == "pass" for row in accounting_rows) and contamination_total == 0 and environment["redaction_passed"]:
+        if derived["outcome"] == "continuation-ready-strong":
+            outcome = "accepted"
+            reason_code = None
+            acceptance_class = "strong"
+            acceptance_disclosure = []
+        elif derived["outcome"] == "continuation-ready-conditional":
+            outcome = "accepted"
+            reason_code = None
+            acceptance_class = "conditional-opencode"
+            acceptance_disclosure = [
+                "Claude runtime model identity was authoritatively proved.",
+                "OpenCode capability / preflight and scored routing behavior passed.",
+                "OpenCode runtime model identity was not authoritatively proved.",
+                "This result is not strong cross-harness same-model acceptance.",
+            ]
+
     acceptance_passed = (
         all(harness_summaries[h]["preflight"] == "pass" for h in HARNESSES)
-        and aligned
         and all(row["status"] == "pass" for row in accounting_rows)
         and contamination_total == 0
         and environment["redaction_passed"]
+        and outcome == "accepted"
     )
-    cross_harness_model_confound = False
-    if not aligned:
-        cross_harness_model_confound = (reason_code or alignment_reason) == "model_alignment_blocked"
+    cross_harness_model_confound = outcome == "blocked" and (reason_code or alignment_reason) == "model_alignment_blocked"
     return {
         "run_id": environment["run_id"],
         "run_kind": environment["run_kind"],
@@ -411,6 +430,10 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         "cross_harness_model_confound": cross_harness_model_confound,
         "outcome": outcome,
         "reason_code": reason_code,
+        "acceptance_passed": acceptance_passed,
+        "acceptance_class": acceptance_class,
+        "proof_facts": proof_facts,
+        "acceptance_disclosure": acceptance_disclosure,
         "model_alignment": {
             "required": True,
             "aligned": aligned,
@@ -421,7 +444,6 @@ def build_summary(run_dir: Path, cases: list[dict[str, Any]]) -> dict[str, Any]:
         "accounting_rows": accounting_rows,
         "verdict_counts_valid": verdict_counts_valid,
         "run_complete": run_complete,
-        "acceptance_passed": acceptance_passed,
         "release_candidate_eligible": run_complete and acceptance_passed and environment["redaction_passed"],
         "packaging_redaction_passed": environment["redaction_passed"],
         "raw_artifacts": environment["raw_artifacts"],
@@ -456,9 +478,19 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
         f"- Blocked: `{str(summary['model_alignment']['blocked']).lower()}`",
         f"- Canonical identity: `{summary['model_alignment']['canonical_identity']}`",
         "- Model proofs: `preflight/claude-model-proof.json`, `preflight/opencode-model-proof.json`",
-        "",
-        "## Harness summaries",
     ]
+    if summary.get("acceptance_class") is not None:
+        lines.extend(
+            [
+                "",
+                "## Acceptance",
+                f"- Outcome: `{summary['outcome']}`",
+                f"- Acceptance class: `{summary['acceptance_class']}`",
+            ]
+        )
+        for item in summary.get("acceptance_disclosure", []):
+            lines.append(f"- {item}")
+    lines.extend(["", "## Harness summaries"])
     for harness in HARNESSES:
         harness_summary = summary["harnesses"][harness]
         case_ids = ", ".join(harness_summary["contamination"]["case_ids"]) or "none"
