@@ -389,12 +389,16 @@ Task 4 is therefore **synthetically review-closed only**. Historical note: at th
 ### 5.5 Tasks 5–7 — current status
 
 - Task 5: **complete on `main`** — synthetic preflight, model-alignment hard gate, orchestration, synthetic runner wiring, and fail-closed follow-up fixes are merged into `main` ancestry through `673f8a6` plus later follow-up commits reachable from current `main`.
-- Task 6: **complete as a blocked real-preflight outcome on `main`** — Task 1/2 synthetic validation, fail-closed native proof-surface fixes, Task 6 spec/plan updates, and a committed real preflight-only evidence set are now merged into `main`. The final committed Task 6 evidence is the blocked run `tests/harness-acceptance/results/2026-07-19T152433Z/` with `reason_code = global_hard_gate_blocked`.
+- Task 6: historical blocked evidence remains committed, but future runs now classify under the dual-track contract as `blocked`, `allowlist-update-needed`, `continuation-ready-strong`, or `continuation-ready-conditional`.
 
-  Contract revision note: `tests/harness-acceptance/results/2026-07-19T152433Z/` remains valid blocked evidence under the old OpenCode capability contract. After the 2026-07-20 proof-contract revision lands, comparable future runs should be expected to pass capability/plugin proof and classify as `runtime-proof-unavailable` if authoritative runtime model proof is still unavailable.
+  Contract note: `continuation-ready-conditional` is allowed only when Claude is authoritatively proved and canonicalized, OpenCode capability / preflight passes, OpenCode runtime proof remains unavailable, and no other hard gate fails.
+
+  Historical evidence rule: do not rewrite committed blocked runs in place; treat them as records of the contract state that existed when they were generated.
 
   Current-proof-boundary note: `reference/opencode` is reference-only in the current workflow and must not be consumed as authoritative runtime proof input for Task 6 / Task 7 continuation decisions. Current ResearchFlow harness evaluation accepts runtime model proof only from the current run's preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/`.
-- Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a continuation-ready Task 6 run exists.
+- Task 7: **not started** — at most 14 scored cases and bounded evidence packaging, only after a new Task 6 run reaches either `continuation-ready-strong` or `continuation-ready-conditional`.
+
+  Result-contract note: accepted Task 7 results now use top-level `outcome = accepted` plus `acceptance_class = strong | conditional-opencode`. Only `acceptance_class = strong` supports a verified cross-harness same-model claim.
 
 ### 5.6 Current-repo OpenCode proof-boundary hardening — complete on `main`
 
@@ -489,7 +493,7 @@ The current-repo proof-boundary hardening is complete. The next step is no longe
    ./tests/run-all.sh
    ```
 
-5. Do not run scored cases unless a new continuation-ready Task 6 run is explicitly produced.
+5. Do not run scored cases unless a new Task 6 run reaches either `continuation-ready-strong` or `continuation-ready-conditional` under the current contract.
 6. Do not infer canonical model identity from static config, route labels, resolved config dumps, or anything under `reference/opencode`; only current-run redacted proof artifacts can establish runtime proof in this repo.
 7. Do not move, delete, prune, or clean any `.claude/worktrees/agent-*` directory without explicit user approval. Do not touch `.omc/` in any worktree.
 
@@ -498,25 +502,26 @@ The current-repo proof-boundary hardening is complete. The next step is no longe
 Proceed in this order only:
 
 1. Preserve the historical Task 6 blocked evidence and apply the revised OpenCode proof contract only to future runs.
-2. Produce a new Task 6 continuation-ready run only if a new authoritative runtime-proof surface appears or a fresh revised-contract rerun is explicitly requested.
-3. Task 7 scored run only if a continuation-ready Task 6 run exists.
+2. Produce a new Task 6 run that classifies under the active contract as `blocked`, `allowlist-update-needed`, `continuation-ready-strong`, or `continuation-ready-conditional`.
+3. Task 7 scored run only if a new Task 6 run reaches `continuation-ready-strong` or `continuation-ready-conditional`.
 
 Hard stops:
 
 - If capability/plugin proof cannot be established, create blocked evidence; do not improvise a load command.
-- If both harnesses cannot verify the same OpenAI backing model from real redacted proof, do not start Task 7.
-- If the model identity is newly proved but absent from the allowlist, commit the exact mapping and rerun preflight under a new run ID; do not score the old run.
+- If Claude proof is real but not canonicalized under the allowlist, stop on `allowlist-update-needed`; do not treat that as conditional continuation.
+- If both harnesses cannot verify the same OpenAI backing model from real redacted proof and the run does not legally qualify for conditional continuation, do not start Task 7.
 - If redaction finds a leak, do not stage evidence.
 - If a successful tool execution occurs during a scored case, classify it as `harness_error`.
 - Never retry a scored case in the original run.
 - Never exceed 14 scored invocations.
-- Do not treat the committed blocked Task 6 evidence as proof that Task 7 can start; it is proof that current `main` still lacks a continuation-ready entrypoint.
+- Do not treat previously committed blocked Task 6 evidence as proof that Task 7 can start; only a new run classified under the active contract can serve as a legal Task 7 entrypoint.
 
 ## 9. Known limitations and unresolved work
 
 - Claude Code still has no saved real fresh-session routing transcript beyond the Task 6 preflight proof artifacts.
-- OpenCode still has no accepted authoritative runtime model-proof input for current ResearchFlow continuation decisions beyond the current run's own trusted preflight artifacts. The historical `tests/harness-acceptance/results/2026-07-19T152433Z/` run remains blocked old-contract evidence with `reason_code = global_hard_gate_blocked`; under the revised contract plus the 2026-07-21 boundary hardening, comparable future runs should classify as `runtime-proof-unavailable` unless a new accepted authoritative runtime proof surface is explicitly integrated.
-- No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists from both harnesses.
+- OpenCode still has no accepted authoritative runtime model-proof input for current ResearchFlow continuation decisions beyond the current run's own trusted preflight artifacts.
+- No accepted evidence exists yet under either `acceptance_class = strong` or `acceptance_class = conditional-opencode`.
+- No backing-model identity has been added to `canonical_models`; it must remain empty until real redacted proof exists from both harnesses or from Claude alone for an allowlist-update-needed path.
 - No scored acceptance result exists; do not claim acceptance, stability, or release readiness.
 - Release version remains `0.1.0`.
 - No release candidate, version bump, publish, or push is authorized by this work.
@@ -527,15 +532,12 @@ Hard stops:
 
 ## 10. Safety and workflow reminders
 
-- Future agents should treat this repository root as cwd; use cwd-relative paths and direct Git commands.
-- Do not commit unrelated parent-repo changes.
-- The cwd-local `reference/` symlinks are ignored local research inputs; do not force-add, rewrite, or delete them. In particular, `reference/opencode` is reference-only and must not be treated as an implementation or proof source from this repo.
-- Keep the standard submodule Git common-dir at the parent `.git/modules/reference/researchflow`; do not manually relocate it.
-- New manual worktrees belong under `.worktrees/`; existing harness-owned `.claude/worktrees/agent-*` stay registered where Git/Claude created them.
-- Do not stage any worktree's `.omc/` directory.
-- Do not log or commit `base_url`, API keys, auth headers, proxy credentials, raw environment variables, or user-home paths.
-- Keep raw event streams in ignored local storage; committed evidence contains only redacted normalized artifacts and hashes.
-- Do not modify the thin router or workflow contracts during acceptance implementation.
-- Do not push without explicit user approval.
-- Before reporting completion, run task review and then whole-branch review as required by subagent-driven development.
-- When resuming after cleanup, prefer a new branch from `main` over reviving stopped harness worktrees whose deletion was interrupted.
+- Preserve the current-run-only proof boundary.
+- Preserve `reference/opencode` as reference-only.
+- Preserve the dual-track acceptance split in future docs and summaries.
+- Do not collapse `acceptance_class = strong` and `acceptance_class = conditional-opencode` into one generic acceptance claim.
+- Keep `proof_facts` as evidence facts, separate from top-level accepted/blocked outcome.
+- Keep Claude canonicalization as the anchor for conditional continuation.
+- Never clean worktree residue without explicit approval.
+
+End of updated handover note.

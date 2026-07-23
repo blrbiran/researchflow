@@ -253,13 +253,22 @@ The fixed operator flow is:
 4. execute `--mode preflight-only`;
 5. run redaction scan, then run summary reconstruction/check-only only for blocked-style outcomes;
 6. manually review redacted model proofs and the resulting blocked preflight summary when present;
-7. classify outcome as `blocked`, `allowlist-update-needed`, or `continuation-ready`.
+7. classify outcome as `blocked`, `allowlist-update-needed`, `continuation-ready-strong`, or `continuation-ready-conditional`.
 
-If either harness proves runtime viability yet cannot emit authoritative runtime model proof, the operator must classify the run as `blocked` with reason `runtime-proof-unavailable`. The current motivating case is Claude proving a canonical model identity while OpenCode passes capability/preflight but cannot emit authoritative runtime model proof.
+Contract revision note: this Task 6 design originally assumed a single `continuation-ready` state. Under the active repo contract, that state now splits into:
 
-For a `continuation-ready` preflight-only run, Task 6 does not require final summary artifacts and therefore does not require `summarize --check-only` to succeed against a non-existent final summary. In that outcome, the validation target is the preflight artifact set plus `preflight/baseline.json`, not `summary.json` / `summary.md`.
+- `continuation-ready-strong` — both harnesses provide authoritative runtime proof and satisfy the current alignment rules.
+- `continuation-ready-conditional` — Claude is authoritatively proved and canonicalized, OpenCode capability/preflight passes, OpenCode runtime proof remains unavailable, and no other hard gate fails.
+- `allowlist-update-needed` still takes precedence when Claude proof is real but not yet canonicalized under the allowlist.
+
+Under the active contract, OpenCode runtime-proof absence is no longer always an automatic blocked result. When Claude remains the canonicalized anchor, it may instead produce `continuation-ready-conditional`; otherwise `runtime-proof-unavailable` remains a blocked-style fact/reason.
+
+For a `continuation-ready-strong` or `continuation-ready-conditional` preflight-only run, Task 6 does not require final summary artifacts and therefore does not require `summarize --check-only` to succeed against a non-existent final summary. In those outcomes, the validation target is the preflight artifact set plus `preflight/baseline.json`, not `summary.json` / `summary.md`.
+
+This document remains the historical base for the real preflight-only workflow. For the active dual-track continuation/reporting semantics, follow `docs/superpowers/specs/2026-07-22-opencode-conditional-acceptance-design.md`.
 
 ### 6.1 Local config rules
+
 
 `run-config.local.json` may provide only local operational values that the runner expects, such as harness route selection, effort/variant, timeout, and any local paths explicitly required by the accepted Task 5 runner shape.
 
