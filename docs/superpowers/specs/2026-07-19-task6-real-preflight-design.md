@@ -207,9 +207,38 @@ For OpenCode, capability/plugin proof and runtime model proof are separate gates
 - repo static proof, workspace proof, and canary success determine whether OpenCode passes the capability/plugin gate;
 - `debug config`, `debug paths`, and `debug skill` remain diagnostic evidence only;
 - `run --format json` is not an accepted authoritative runtime model-proof surface on the current non-interactive path;
-- therefore a future OpenCode run that passes capability/plugin proof but cannot emit authoritative runtime model proof must classify as `blocked` with `reason_code = runtime-proof-unavailable`.
+- therefore a future OpenCode run that passes capability/plugin proof but cannot emit authoritative runtime model proof no longer automatically implies `blocked`.
 
-Capability/plugin pass alone never authorizes Task 7 scored execution.
+Under the active contract:
+
+- if Claude is already authoritatively proved and canonicalized, the run may classify as `continuation-ready-conditional`;
+- if Claude is missing, invalid, or not canonicalized, `runtime-proof-unavailable` remains a blocked-style fact/reason.
+
+Capability/plugin pass alone still never authorizes Task 7 scored execution.
+
+For the active dual-track rule, the later `docs/superpowers/specs/2026-07-22-opencode-conditional-acceptance-design.md` governs over this older single-state wording.
+
+This section is retained so the historical Task 6 design still documents why OpenCode capability proof and authoritative runtime proof are distinct, but future execution should follow the newer conditional-continuation rule.
+
+Nothing in this section changes the trusted proof-source policy.
+
+Only current-run trusted preflight artifacts remain valid runtime-proof input.
+
+`reference/opencode` remains reference-only.
+
+Those boundary constraints are unchanged.
+
+Only the continuation semantics changed.
+
+That distinction must remain explicit in future edits.
+
+End of revised boundary note.
+
+Capability/plugin pass alone still never authorizes Task 7 scored execution.
+
+That remains a hard constraint.
+
+End.
 
 ### 5.2 Same-model rule
 
