@@ -1,51 +1,48 @@
 # ResearchFlow Plugin Handover
 
-> Updated: 2026-07-22
+> Updated: 2026-07-23
 > Expected agent cwd: the ResearchFlow repository root (`reference/researchflow/` from the parent; `.` inside this document)
 > Remote: `git@github.com:blrbiran/researchflow.git`
 > Historical design checkout branch: `docs/live-harness-acceptance-design`
 > Repository-root branch: `main`
-> Repository-root HEAD: local `main` included `9932dda` when this handover was refreshed. If exact HEAD matters, verify with `git rev-parse --short HEAD` at resume time because later handover edits or local commits will advance it.
+> Repository-root HEAD: this handoff was refreshed after the dual-track conditional-acceptance work was merged back into local `main`; if exact HEAD matters, verify with `git rev-parse --short HEAD` at resume time because later handoff edits or local commits will advance it.
 > Origin branch state: intentionally omitted here; verify with `git status --short --branch` or `git rev-list --left-right --count origin/main...HEAD` at resume time if exact divergence matters.
-> Preserved implementation worktree from this cwd: none
-> Preserved implementation branch: none
+> Preserved implementation worktree from this cwd: none under repo-local `.worktrees/`; the temporary `.worktrees/opencode-conditional-acceptance-task1` workspace is no longer present.
+> Preserved implementation branch: no surviving local branch named `opencode-conditional-acceptance-task1` was present when this handoff was refreshed.
 > Preserved implementation HEAD: none
 > Separate active upstream implementation workspace: none
 > The earlier `reference/opencode/.worktrees/runtime-proof-surface` checkout remains reference-only and clean at `9747fef07`; do not modify or commit there from this workflow.
 > Task 5 synthetic preflight/orchestration was completed, reviewed, merged locally to `main`, and its manual `.worktrees/task5-synthetic-preflight-orchestration` workspace was removed.
-> The latest Task 5 code is already in local `main` ancestry under merge commit `673f8a6`.
-> Task 6 design is now approved in `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`.
-> Task 6 implementation plan is now approved in `docs/superpowers/plans/2026-07-19-task6-real-preflight.md`.
-> Task 6 Task 1/2 synthetic implementation is now merged locally to `main` via `2f243ea`, adding machine-readable preflight outcomes plus a read-only continuation-validation CLI.
-> Task 6 later completed as a blocked real-preflight outcome; the committed evidence remains `tests/harness-acceptance/results/2026-07-19T152433Z/` with `reason_code = global_hard_gate_blocked` under the old contract.
-> There is still no scored acceptance run and no live acceptance evidence beyond that blocked preflight record.
-> The immediate next step is no longer “run Task 6 real preflight-only” — future work should start from the current proof-boundary-hardened `main` state and continue only if the user explicitly wants more Task 6 / Task 7 work.
+> The current repo now also includes the first dual-track conditional-acceptance contract slice merged to local `main`: preflight strong-vs-conditional continuation, runner support for conditional baselines, summary `outcome = accepted` plus `acceptance_class`, and aligned Task 6 / Task 7 docs.
+> Task 6 design remains in `docs/superpowers/specs/2026-07-19-task6-real-preflight-design.md`, but it now carries a short contract-revision note pointing future agents to the later dual-track design.
+> The approved dual-track design record is `docs/superpowers/specs/2026-07-22-opencode-conditional-acceptance-design.md`.
+> The implementation plan used for the dual-track slice is `docs/superpowers/plans/2026-07-22-opencode-conditional-acceptance.md`.
+> Historical Task 6 real-preflight evidence remains committed at `tests/harness-acceptance/results/2026-07-19T152433Z/` (old-contract blocked evidence) and `tests/harness-acceptance/results/2026-07-22T143702Z/` (revised-contract blocked evidence with OpenCode runtime-proof absence).
+> There is still no scored acceptance run and no accepted live evidence under either `acceptance_class = strong` or `acceptance_class = conditional-opencode`.
+> The immediate next step is no longer “design the contract split” — future work should start from the current `main` state and continue only if the user explicitly wants more Task 6 / Task 7 execution work.
 > Do not reopen Task 5 unless new evidence shows a concrete regression against the merged local `main` behavior or the approved Task 5 design/plan.
 > The parent `ccmem_paper` repository currently points to this newer ResearchFlow state; no additional submodule-pointer commit is needed unless later local commits are made here.
-> Local planning/design docs now include Task 5 and Task 6 records; preserve them unless the user explicitly asks otherwise.
-> Repo-local `.claude/worktrees/agent-a7e704d91a6ea7c24` no longer exists.
 > Repo-local `.claude/worktrees/agent-af92299cb5b976a2b` currently remains harness/session residue with local `.omc/`; do not discard it silently.
 > Additional `.claude/worktrees/agent-*` entries may remain harness/session residue; do not clean them without explicit per-path review and user approval.
 > Safe observed tool versions remain:
 > - Claude Code: `2.1.214`
 > - OpenCode: `1.18.3`
 > - Python: `3.9.13`
-> Future agents should treat the latest canonical local implementation state as repo-root `main` including the 2026-07-21 reference-only OpenCode proof-boundary hardening merged during this pass. If an exact SHA matters, verify it at resume time.
-> The temporary repo-local implementation workspace `.worktrees/task6-real-preflight-20260719a` was merged back and removed; future agents should start from repo-root `main`, not revive it.
+> Most recent merged verification on repo-root `main`: `./tests/run-all.sh` passed after the dual-track merge; the harness acceptance synthetic suite now reports **118 passed, 0 failed** inside that full run.
 > Root OpenWolf files were only partially refreshed in this pass; future agents should verify `.wolf/anatomy.md`, `.wolf/memory.md`, and `.wolf/buglog.json` against current repo state before relying on them.
 > End of current-state header.
 > 
 > Executive summary for next agent (10 lines max):
-> 1. ResearchFlow repo root stays on local `main`; at handover refresh it included commits through `9932dda`, but verify exact SHA at resume time because later handover edits change HEAD.
-> 2. Historical Task 6 evidence remains `tests/harness-acceptance/results/2026-07-19T152433Z/` and is still blocked old-contract evidence with `reason_code = global_hard_gate_blocked`.
-> 3. Current harness boundary is now explicit: only current-run preflight artifacts under `tests/harness-acceptance/results/<run-id>/preflight/` count as runtime model proof.
-> 4. `reference/opencode` is reference-only in this workflow; do not modify it or consume it as authoritative proof input.
-> 5. Task 7 is still not started; do not run scored cases unless a new continuation-ready Task 6 run is explicitly produced.
-> 6. The 2026-07-21 current-repo design/plan are `docs/superpowers/specs/2026-07-21-reference-opencode-proof-boundary-design.md` and `docs/superpowers/plans/2026-07-21-reference-opencode-proof-boundary.md`.
-> 7. Boundary-hardening implementation is merged locally to `main`; the temporary `.worktrees/proof-boundary` branch/worktree were merged and removed.
-> 8. Most recent merged verification on repo-root `main`: `./tests/harness-acceptance/run-tests.sh` = **111 passed**, `./tests/run-all.sh` = **pass**.
-> 9. OpenCode smoke still emits the pre-existing `[MODULE_TYPELESS_PACKAGE_JSON]` Node warning but exits successfully.
-> 10. Preserve repo-local `.claude/worktrees/agent-*` residue and any `.omc/`; do not clean them without explicit approval.
+> 1. ResearchFlow repo root is on local `main`; verify exact HEAD at resume time instead of trusting a frozen SHA from this handoff.
+> 2. The first dual-track conditional-acceptance slice is merged: `preflight.py`, `run.py`, `summarize.py`, and focused docs now support `continuation-ready-strong` vs `continuation-ready-conditional`.
+> 3. Accepted Task 7 results now use top-level `outcome = accepted` plus `acceptance_class = strong | conditional-opencode`; `proof_facts` carries OpenCode runtime-proof absence.
+> 4. Claude remains the canonicalized anchor: a Claude allowlist gap still routes to `allowlist-update-needed`, not conditional continuation.
+> 5. Historical Task 6 evidence remains `tests/harness-acceptance/results/2026-07-19T152433Z/` and `tests/harness-acceptance/results/2026-07-22T143702Z/`; do not rewrite those artifacts in place.
+> 6. `reference/opencode` is reference-only in this workflow; do not modify it or consume it as authoritative proof input.
+> 7. Task 7 is still not started; no accepted scored evidence exists yet under either `acceptance_class`.
+> 8. Most recent merged verification on repo-root `main`: `./tests/run-all.sh` = pass, and the harness acceptance synthetic suite inside that run reported **118 passed, 0 failed**.
+> 9. Preserve repo-local `.claude/worktrees/agent-*` residue and any `.omc/`; do not clean them without explicit approval.
+> 10. If continuing Task 6 / Task 7 work, start from `docs/superpowers/specs/2026-07-22-opencode-conditional-acceptance-design.md` and `docs/superpowers/plans/2026-07-22-opencode-conditional-acceptance.md`.
 > 
 > 
 > Historical notes below remain for provenance only.
