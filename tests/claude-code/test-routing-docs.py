@@ -9,7 +9,7 @@ using = (root / 'skills' / 'using-researchflow' / 'SKILL.md').read_text(encoding
 readme = (root / 'README.md').read_text(encoding='utf-8')
 claude = (root / 'CLAUDE.md').read_text(encoding='utf-8')
 claude_doc = (root / 'docs' / 'README.claude.md').read_text(encoding='utf-8')
-handover = (root / 'docs' / 'handover' / 'researchwork-plugin-handover.md').read_text(encoding='utf-8')
+handover = (root / 'docs' / 'handoff' / 'handoff.md').read_text(encoding='utf-8')
 
 routing_rule = 'Route to the earliest missing or unstable artifact, not merely to the section or file the user mentions.'
 contract_cases = [
